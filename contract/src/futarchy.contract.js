@@ -19,14 +19,13 @@
  */
 // @ts-check
 // @jessie-check
-import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { Far } from '@endo/far';
 import { M, getCopyBagEntries } from '@endo/patterns';
 import { AssetKind } from '@agoric/ertp/src/amountMath.js';
 import { AmountShape } from '@agoric/ertp/src/typeGuards.js';
 import { atomicRearrange } from '@agoric/zoe/src/contractSupport/atomicTransfer.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
-//import '@agoric/zoe/exported.js';
+import '@agoric/zoe/exported.js';
 
 
 
@@ -120,7 +119,6 @@ export const start = async zcf => {
   /** a seat for allocating proceeds of sales */
   const proceeds = zcf.makeEmptySeatKit().zcfSeat;
 
-  /** @type { import ("@agoric/zoe").OfferHandler } */
   const joinFutarchyHandler = joinerSeat => {
     const newCashNo = cashNoMint.mintGains({ CashNo: AmountMath.make(cashNoBrand, CASH * UNIT) });
     const newCashYes = cashYesMint.mintGains({ CashYes: AmountMath.make(cashYesBrand, CASH * UNIT) });

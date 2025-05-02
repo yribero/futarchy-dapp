@@ -1,0 +1,28 @@
+export interface DamOffer {
+    address: string;
+    amount: number;
+    amountAvailable: number;
+    id: number;
+    price: number;
+    resolved: boolean;
+    taker: boolean;
+    timestamp: number;
+    type: string;
+    condition: number;
+}
+
+export interface DoneDeal {
+    id: number;
+    condition: number;
+    from: string;
+    to: string;
+    quantity: number,
+    price: number;
+    cash: number;
+}
+
+export interface ContractWallet {
+    address: string;
+    cash: Array<number>;
+    shares: Array<number>;
+}

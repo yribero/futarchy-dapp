@@ -1,8 +1,8 @@
 {
-  "name": "otc-desk-contract",
+  "name": "futarchy-contract",
   "version": "0.1.0",
   "private": true,
-  "description": "Offer Up Contract",
+  "description": "Futarchy Contract",
   "type": "module",
   "scripts": {
     "start:docker": "docker compose up -d",
@@ -13,6 +13,7 @@
     "start": "./scripts/wait-for-chain.sh && yarn docker:make clean start-contract",
     "build": "agoric run scripts/build-contract-deployer.js",
     "test": "ava --verbose",
+    "test:own": "sudo chown -R yribero:yribero . && ava --verbose",
     "test:watch": "ava --verbose -w",
     "lint": "tsc && eslint '**/*.js'",
     "lint:fix": "eslint --fix '**/*.js'",
@@ -48,7 +49,7 @@
     "@agoric/ertp": "^0.16.3-u16.1",
     "@agoric/store": "^0.9.3-upgrade-16a-dev-fb592e4.0+fb592e4",
     "@agoric/vats": "dev",
-    "@agoric/zoe": "^0.26.2",
+    "@agoric/zoe": "^0.26.3-u16.1",
     "@endo/far": "^1.1.10",
     "@endo/marshal": "^1.6.3",
     "@endo/patterns": "^1.4.8"

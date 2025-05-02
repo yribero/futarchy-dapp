@@ -1,181 +1,191 @@
 import { useEffect } from 'react';
-
+import { create, StoreApi, UseBoundStore } from 'zustand';
+import { AgoricChainStoragePathKind as Kind } from '@agoric/rpc';
 import './App.css';
-import {
-  makeAgoricChainStorageWatcher,
-  AgoricChainStoragePathKind as Kind,
-} from '@agoric/rpc';
-import { create } from 'zustand';
-import {
-  makeAgoricWalletConnection,
-  suggestChain,
-} from '@agoric/web-components';
-import { subscribeLatest } from '@agoric/notifier';
-import { makeCopyBag } from '@agoric/store';
+import AppState from './helpers/AppState';
+import AgoricLayer from './helpers/AgoricLayer';
+import { Join } from './components/Join';
 import { Logos } from './components/Logos';
 import { Inventory } from './components/Inventory';
-import { Trade } from './components/Trade';
+import { DamOffer, DoneDeal } from './helpers/FutarchyTypes';
 
-const { entries, fromEntries } = Object;
+const { fromEntries } = Object;
 
-type Wallet = Awaited<ReturnType<typeof makeAgoricWalletConnection>>;
+let useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>(() => ({
+    doneDeals: [],
+    medians: [0, 0]
+}));
 
-const ENDPOINTS = {
-  RPC: 'http://localhost:26657',
-  API: 'http://localhost:1317',
-};
-
-const codeSpaceHostName = import.meta.env.VITE_HOSTNAME;
-
-const codeSpaceDomain = import.meta.env
-  .VITE_GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
-
-if (codeSpaceHostName) {
-  ENDPOINTS.API = `https://${codeSpaceHostName}-1317.${codeSpaceDomain}`;
-  ENDPOINTS.RPC = `https://${codeSpaceHostName}-26657.${codeSpaceDomain}`;
-}
-if (codeSpaceHostName && codeSpaceDomain) {
-  ENDPOINTS.API = `https://${codeSpaceHostName}-1317.${codeSpaceDomain}`;
-  ENDPOINTS.RPC = `https://${codeSpaceHostName}-26657.${codeSpaceDomain}`;
-} else {
-  console.error(
-    'Missing environment variables: VITE_HOSTNAME or VITE_GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN',
-  );
-}
-const watcher = makeAgoricChainStorageWatcher(ENDPOINTS.API, 'agoriclocal');
-
-interface AppState {
-  wallet?: Wallet;
-  offerUpInstance?: unknown;
-  brands?: Record<string, unknown>;
-  purses?: Array<Purse>;
-}
-
-const useAppStore = create<AppState>(() => ({}));
+let agoricLayer : AgoricLayer;
 
 const setup = async () => {
-  watcher.watchLatest<Array<[string, unknown]>>(
-    [Kind.Data, 'published.agoricNames.instance'],
-    instances => {
-      console.log('got instances', instances);
-      useAppStore.setState({
-        offerUpInstance: instances.find(([name]) => name === 'offerUp')!.at(1),
-      });
-    },
-  );
+    agoricLayer = new AgoricLayer(new URL(window.location.href));
 
-  watcher.watchLatest<Array<[string, unknown]>>(
-    [Kind.Data, 'published.agoricNames.brand'],
-    brands => {
-      console.log('Got brands', brands);
-      useAppStore.setState({
-        brands: fromEntries(brands),
-      });
-    },
-  );
-};
+    agoricLayer.startWatcher(
+        Kind.Data,
+        'published.agoricNames.instance',
+        (instances: Array<[string, unknown]>) => {
+            const futarchyContracts = instances.find(([name]) => name === 'futarchy');
 
-const connectWallet = async () => {
-  try {
-    await fetch(ENDPOINTS.RPC);
-  } catch (error) {
-    throw new Error('Chain is not running. Please start the chain first!');
-  }
-  await suggestChain('https://local.agoric.net/network-config');
-  const wallet = await makeAgoricWalletConnection(watcher, ENDPOINTS.RPC);
-  useAppStore.setState({ wallet });
-  const { pursesNotifier } = wallet;
-  for await (const purses of subscribeLatest<Purse[]>(pursesNotifier)) {
-    console.log('got purses', purses);
-    useAppStore.setState({ purses });
-  }
-};
+            useAppStore.setState({
+                contractInstance: futarchyContracts!.at(1),
+            });
+        },
+        true
+    );
 
-const makeOffer = (giveValue: bigint, wantChoices: Record<string, bigint>) => {
-  const { wallet, offerUpInstance, brands } = useAppStore.getState();
-  if (!offerUpInstance) {
-    alert('No contract instance found on the chain RPC: ' + ENDPOINTS.RPC);
-    throw Error('no contract instance');
-  }
-  if (!(brands && brands.IST && brands.Item)) {
-    alert('Brands not available');
-    throw Error('brands not available');
-  }
+    agoricLayer.startWatcher(
+        Kind.Data,
+        'published.agoricNames.brand',
+        (brands: Array<[string, unknown]>) => {
+            useAppStore.setState({
+                brands: fromEntries(brands),
+            });
+        },
+        true
+    );
 
-  const value = makeCopyBag(entries(wantChoices));
-  const want = { Items: { brand: brands.Item, value } };
-  const give = { Price: { brand: brands.IST, value: giveValue } };
+    agoricLayer.startWatcher(
+        Kind.Data,
+        'published.futarchy.approved',
+        (approvedReceived: { value: boolean | undefined }) => {
+            if (approvedReceived.value != null) {
+                useAppStore.setState({
+                    approved: approvedReceived.value
+                });
+            }
+        },
+        true
+    );
 
-  wallet?.makeOffer(
-    {
-      source: 'contract',
-      instance: offerUpInstance,
-      publicInvitationMaker: 'makeTradeInvitation',
-    },
-    { give, want },
-    undefined,
-    (update: { status: string; data?: unknown }) => {
-      if (update.status === 'error') {
-        alert(`Offer error: ${update.data}`);
-      }
-      if (update.status === 'accepted') {
-        alert('Offer accepted');
-      }
-      if (update.status === 'refunded') {
-        alert('Offer rejected');
-      }
-    },
-  );
-};
+    agoricLayer.startWatcher(
+        Kind.Data,
+        'published.futarchy.medians',
+        (medians: Array<number>) => {
+            useAppStore.setState({
+                medians: medians
+            })
+        },
+        true
+    );
+    
+    agoricLayer.startWatcher(
+        Kind.Children,
+        'published.futarchy.contracts',
+        async (contracts: Array<[string, unknown]>) => {
+            let { doneDeals } = useAppStore.getState();
+    
+            for (let i = 0; i < contracts.length; i++) {
+              const id = contracts[i];
+      
+              if (doneDeals.find(dd => dd.id.toString() === id.toString()) != null) {
+                continue;
+              }
+      
+              const result : DoneDeal = await agoricLayer.queryOnce<DoneDeal>(Kind.Data, `published.futarchy.contracts.${id}`);
+              
+              if (doneDeals.find(dd => dd.id.toString() === id.toString()) != null) {
+                continue;
+              } //Checking twice because the async call in between may cause the insertion of a done deal *after* it has been checked as not existing
+      
+              doneDeals.push(result);
+            }
+        },
+        true
+    );
+
+    agoricLayer.startWatcher(
+        Kind.Children,
+        'published.futarchy.asks',
+        async (allAsks: Array<[string, unknown]>) => {
+            let retrievedAsks : Array<DamOffer> = [];
+        
+            let result : DamOffer;
+        
+            for (let i = 0; i < allAsks.length; i++) {
+                const id = allAsks[i];
+                result = await agoricLayer.queryOnce<DamOffer>(Kind.Data, `published.futarchy.asks.${id}`);
+                if (!result.resolved) {
+                retrievedAsks.push(result);
+                }
+            }
+        
+            retrievedAsks.sort((o1, o2) => o2.price - o1.price);
+        
+            useAppStore.setState({
+                asks: retrievedAsks
+            })
+        },
+        true
+    );
+    
+    agoricLayer.startWatcher(
+        Kind.Children,
+        'published.futarchy.bids',
+        async (allBids: Array<[string, unknown]>) => {
+            let retrievedBids : Array<DamOffer> = [];
+      
+            let result : DamOffer;
+      
+            for (let i = 0; i < allBids.length; i++) {
+              const id = allBids[i];
+              result = await agoricLayer.queryOnce<DamOffer>(Kind.Data, `published.futarchy.bids.${id}`);
+              if (!result.resolved) {
+                retrievedBids.push(result);
+              }
+            }
+      
+            retrievedBids.sort((o1, o2) => o2.price - o1.price);
+      
+            useAppStore.setState({
+              bids: retrievedBids
+            })
+        },
+        true
+    );
+}
 
 function App() {
-  useEffect(() => {
-    setup();
-  }, []);
+    useEffect(() => {
+        setup();
+    }, []);
 
-  const { wallet, purses } = useAppStore(({ wallet, purses }) => ({
-    wallet,
-    purses,
-  }));
-  const istPurse = purses?.find(p => p.brandPetname === 'IST');
-  const itemsPurse = purses?.find(p => p.brandPetname === 'Item');
+    const state = useAppStore();
+    const purses = state.purses?.filter(p => ['IST', 'CashYes', 'CashNo', 'SharesYes', 'SharesNo'].includes(p.brandPetname));
 
-  const tryConnectWallet = () => {
-    connectWallet().catch(err => {
-      switch (err.message) {
-        case 'KEPLR_CONNECTION_ERROR_NO_SMART_WALLET':
-          alert('no smart wallet at that address');
-          break;
-        default:
-          alert(err.message);
-      }
-    });
-  };
+    return (
+        <>
+            <h1>Futarchy Dapp</h1>
 
-  return (
-    <>
-      <Logos />
-      <h1>Items Listed on Offer Up</h1>
+            <Logos />
+            
+            {state.wallet && state.approved == null && state.joined != true &&
+                <div>
+                    <Join useAppStore={useAppStore} agoricLayer={agoricLayer}/>
+                </div>
+            }
+            {state.wallet && state.approved == null && state.joined == true &&
+                <h1>Contract Active: TODO</h1>
+            }
+            {state.wallet && state.approved != null &&
+                <h1>Ended: TODO</h1>
+            }
+            
+            {state.wallet ? (
+                <Inventory
+                    address={state.wallet.address}
+                    purses={purses ? purses : []}
+                />
+            ) : (
+                <div>
+                    <button onClick={() => {
+                        agoricLayer.connectWallet(useAppStore);
+                    }}>Connect Your Wallet</button>
+                </div>
+            )}
 
-      <div className="card">
-        <Trade
-          makeOffer={makeOffer}
-          istPurse={istPurse as Purse}
-          walletConnected={!!wallet}
-        />
-        <hr />
-        {wallet && istPurse ? (
-          <Inventory
-            address={wallet.address}
-            istPurse={istPurse}
-            itemsPurse={itemsPurse as Purse}
-          />
-        ) : (
-          <button onClick={tryConnectWallet}>Connect Wallet</button>
-        )}
-      </div>
-    </>
-  );
+        </>
+    );
 }
 
 export default App;

@@ -33,10 +33,16 @@ const makeBoardAuxNode = async (chainStorage, boardId) => {
 };
 
 const publishBrandInfo = async (chainStorage, board, brand) => {
+  console.log('BRAND', brand);
+
   const [id, displayInfo] = await Promise.all([
     E(board).getId(brand),
     E(brand).getDisplayInfo(),
   ]);
+
+  console.log('DISPLAY INFO', displayInfo);
+  console.log('ID', id);
+
   const node = makeBoardAuxNode(chainStorage, id);
   const aux = marshalData.toCapData(harden({ displayInfo }));
   await E(node).setValue(JSON.stringify(aux));
@@ -83,6 +89,11 @@ export const startFutarchyContract = async permittedPowers => {
     },
   } = permittedPowers;
 
+  console.log('PERMITTED POWERS',
+    '**************************************************',
+    permittedPowers,
+  );
+
   const istIssuer = await istIssuerP;
   const istBrand = await istBrandP;
 
@@ -105,11 +116,25 @@ export const startFutarchyContract = async permittedPowers => {
   const val = await E(zoe).getTerms(instance);
 
   const {
-    brands: { CashNo, CashYes, SharesNo, SharesYes,Item },
-    issuers: { issuer },
+    brands: { 
+      CashNo: cnb,
+      CashYes: cyb,
+      SharesNo: snb,
+      SharesYes: syb,
+      Item: ib
+    },
+    issuers: { 
+      CashNo: cni,
+      CashYes: cyi,
+      SharesNo: sni,
+      SharesYes: syi,
+      Item: ii
+    },
   } = val;
 
-  console.log('CoreEval script: share via agoricNames:', CashNo);
+  console.log("VAL", val);
+  console.log("ISSUERS", val.issuers);
+  console.log('CoreEval script: share via agoricNames:', cnb);
 
   produceInstance.reset();
   produceInstance.resolve(instance);
@@ -126,23 +151,27 @@ export const startFutarchyContract = async permittedPowers => {
   produceSharesNoIssuer.reset();
   produceSharesYesIssuer.reset();
 
-  produceItemBrand.resolve(Item);
-  produceCashNoBrand.resolve(CashNo);
-  produceCashYesBrand.resolve(CashYes);
-  produceSharesNoBrand.resolve(SharesNo);
-  produceSharesYesBrand.resolve(SharesYes);
+  produceItemBrand.resolve(await ib);
+  produceCashNoBrand.resolve(await cnb);
+  produceCashYesBrand.resolve(await cyb);
+  produceSharesNoBrand.resolve(await snb);
+  produceSharesYesBrand.resolve(await syb);
 
-  produceItemIssuer.resolve(issuer);
-  produceCashNoIssuer.resolve(issuer);
-  produceCashYesIssuer.resolve(issuer);
-  produceSharesNoIssuer.resolve(issuer);
-  produceSharesYesIssuer.resolve(issuer);
+  produceItemIssuer.resolve(await ii);
+  produceCashNoIssuer.resolve(await cni);
+  produceCashYesIssuer.resolve(await cyi);
+  produceSharesNoIssuer.resolve(await sni);
+  produceSharesYesIssuer.resolve(await syi);
 
-  await publishBrandInfo(chainStorage, board, Item);
-  await publishBrandInfo(chainStorage, board, CashNo);
-  await publishBrandInfo(chainStorage, board, CashYes);
-  await publishBrandInfo(chainStorage, board, SharesNo);
-  await publishBrandInfo(chainStorage, board, SharesYes);
+  for (let brand of [ib, cnb, cyb, snb, syb]) {
+    try {
+      await publishBrandInfo(chainStorage, board, brand);
+
+      console.log('ONE BRAND SUCCESSFULLY PUBLISHED', brand)
+    } catch (e) {
+      console.error('COULD NOT PUBLISH A BRAND', e);
+    }
+  }
   
   console.log('futarchy (re)started');
 };

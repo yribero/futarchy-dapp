@@ -42,3 +42,5 @@ videos
 # contract tx
 contract/,tx.json
 contract/start-futarchy-plan.json
+
+ui/src/App.tsx.bak

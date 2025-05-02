@@ -2,46 +2,31 @@ import { stringifyAmountValue } from '@agoric/ui-components';
 
 type InventoryProps = {
   address: string;
-  istPurse: Purse;
-  itemsPurse: Purse;
+  purses: Purse[]
 };
 
-const Inventory = ({ address, istPurse, itemsPurse }: InventoryProps) => (
+
+const Inventory = ({ address, purses }: InventoryProps) => (
   <div className="card">
     <h3>My Wallet</h3>
     <div>
-      <div>
-        <small>
-          <code>{address}</code>
-        </small>
+      <div style={{ textAlign: 'left' }}>
+        <b>Current Address: </b><code>{address}</code>
       </div>
 
-      <div style={{ textAlign: 'left' }}>
-        <div>
-          <b>IST: </b>
-          {stringifyAmountValue(
-            istPurse.currentAmount,
-            istPurse.displayInfo.assetKind,
-            istPurse.displayInfo.decimalPlaces,
-          )}
+      {purses ? purses.map((purse) => {
+        return <div style={{ textAlign: 'left' }} key={purse.brandPetname}>
+          <div>
+            <b>{purse.brandPetname}: </b>
+            {stringifyAmountValue(
+              purse?.currentAmount,
+              purse?.displayInfo.assetKind,
+              purse.brandPetname === 'IST' ? purse?.displayInfo.decimalPlaces : 6,
+            )}
+          </div>
         </div>
-        <div>
-          <b>Items:</b>
-          {itemsPurse ? (
-            <ul style={{ marginTop: 0, textAlign: 'left' }}>
-              {(itemsPurse.currentAmount.value as CopyBag).payload.map(
-                ([name, number]) => (
-                  <li key={name}>
-                    {String(number)} {name}
-                  </li>
-                ),
-              )}
-            </ul>
-          ) : (
-            'None'
-          )}
-        </div>
-      </div>
+      }): ''}
+      
     </div>
   </div>
 );
