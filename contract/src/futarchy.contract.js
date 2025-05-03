@@ -19,15 +19,13 @@
  */
 // @ts-check
 // @jessie-check
-import { Far } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { M, getCopyBagEntries } from '@endo/patterns';
-import { AssetKind } from '@agoric/ertp/src/amountMath.js';
+import { AssetKind, assertValueGetHelpers } from '@agoric/ertp/src/amountMath.js';
 import { AmountShape } from '@agoric/ertp/src/typeGuards.js';
 import { atomicRearrange } from '@agoric/zoe/src/contractSupport/atomicTransfer.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import '@agoric/zoe/exported.js';
-
-
 
 /**
  * @import {Amount} from '@agoric/ertp/src/types.js';
@@ -70,13 +68,22 @@ harden(customTermsShape);
  *
  * @param { ZCF<FutarchyTerms>} zcf
  */
-export const start = async zcf => {
+export const start = async (zcf, privateArgs) => {
   const {
     joinFutarchyFee,
     duration,
     brands
   } = zcf.getTerms();
 
+  const history = [];
+  const offers = [];
+  const doneDeals = [];
+
+  const notes = await E(privateArgs.storageNode).makeChildNode('history');
+  const publishedAsks = await E(privateArgs.storageNode).makeChildNode('offers');
+  const publishedContracts = await E(privateArgs.storageNode).makeChildNode('doneDeals');
+  const publishedMedians = await E(privateArgs.storageNode).makeChildNode('medians');
+  const publishedApproved = await E(privateArgs.storageNode).makeChildNode('approved');
   /**
    * a new ERTP mint for items, accessed thru the Zoe Contract Facet.
    * Note: `makeZCFMint` makes the associated brand and issuer available
@@ -94,19 +101,19 @@ export const start = async zcf => {
   const sharesYesMint  = await zcf.makeZCFMint('SharesYes');
   const { brand: sharesYesBrand } = sharesYesMint.getIssuerRecord();
 
-  /*const offerProposalShape = harden ({
-    give: { CashNo: M.or(M.bigint(), M.undefined()), CashYes: M.or(M.bigint(), M.undefined()), SharesNo: M.or(M.bigint(), M.undefined()), SharesYes: M.or(M.bigint(), M.undefined()) },
-    want: { 
-      CashNo: M.or(M.bigint(), M.undefined()),
-      CashYes: M.or(M.bigint(), M.undefined()),
-      SharesNo: M.or(M.bigint(), M.undefined()),
-      SharesYes: M.or(M.bigint(), M.undefined()) },
-    exit: M.any(),
-  });*/
-
   const offerProposalShape = harden ({
-    give: { CashYes: M.any( )},
-    want: M.any(),
+    give: M.or(
+      {CashYes: M.gt(AmountMath.make(cashYesBrand, 0n))},
+      {CashNo: M.gt(AmountMath.make(cashNoBrand, 0n))},
+      {SharesYes: M.eq(AmountMath.make(sharesYesBrand, 1n * UNIT))}, //TODO allow to trade more than a share
+      {SharesNo: M.eq(AmountMath.make(sharesNoBrand, 1n * UNIT))} //TODO allow to trade more than a share
+    ),
+    want: M.or(
+      {CashYes: M.gt(AmountMath.make(cashYesBrand, 0n))},
+      {CashNo: M.gt(AmountMath.make(cashNoBrand, 0n))},
+      {SharesYes: M.eq(AmountMath.make(sharesYesBrand, 1n * UNIT))}, //TODO allow to trade more than a share
+      {SharesNo: M.eq(AmountMath.make(sharesNoBrand, 1n * UNIT))} //TODO allow to trade more than a share
+    ),
     exit: M.any(),
   });
 
@@ -169,26 +176,38 @@ export const start = async zcf => {
     }
   }
 
+  /**
+   * @param {import ("@agoric/zoe").ZCFSeat} seat
+   */
   const makeOfferHandler = async (seat, offerArgs) => {
     console.log('OFFER ARGS', offerArgs);
-    //TODO: must use continuous invitation pattern to cancel
-    /*const { offerData } = offerArgs;
-    const offerSecret = offerData.secret;
 
-    if (certificateIds.has(currentId)) {
-      throw Error(`Certificate ID ${currentId} already exists`);
+    const {want, give} = seat.getProposal();
+
+    console.log('PROPOSAL', {want, give});
+
+    const matches = {
+      "SharesYes": "CashYes",
+      "SharesNo": "CashNo",
+      "CashYes": "SharesYes",
+      "CashNo": "SharesYes"
     }
 
-    certificateIds.add(currentId);
+    for (let key in matches) {
+      if (want[key] == null && give[matches[key]] == null) {
+        continue;
+      }
 
-    const edCertNode = await E(recordsDataRoot).makeChildNode(
-      certificateData.certificateId,
-    );
-
-    await E(edCertNode).setValue(JSON.stringify(certificateData));*/
+      if (want[key] != null) {
+        assert(
+          want[key] != null && give[matches[key]] != null,
+          `Mismatch: a request of ${key} should have a matching offer of ${matches[key]}`
+        );
+      }
+    }
 
     /**
-     * @param {ZCFSeat} seat
+     * @param {import ("@agoric/zoe").ZCFSeat} seat
      */
     const oa = async (seat, offerArgs) => {
       console.log('OFFER ARGS', offerArgs);
@@ -203,7 +222,7 @@ export const start = async zcf => {
       return secondInviteObj;
     }
 
-    seat.exit();
+    //seat.exit(); Only if the offer is resolved
 
     const secondInviteObj =  harden({
       invitationMakers: Far('second invitation maker', {
@@ -225,6 +244,7 @@ export const start = async zcf => {
           ),
       }),
     });
+
     return secondInviteObj;
   }
 
@@ -248,7 +268,7 @@ export const start = async zcf => {
     );
   }
 
-  // Mark the publicFacet Far, i.e. reachable from outside the contract
+  // Mark the publicFacet Far, i.e. reachable from outside the `contract
   const publicFacet = Far('Items Public Facet', {
     joinFutarchy,
     getLimits,

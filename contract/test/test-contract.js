@@ -1,11 +1,12 @@
 import { test as anyTest } from './prepare-test-env-ava.js';
 import { createRequire } from 'module';
 import { E, Far } from '@endo/far';
-import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { makeNodeBundleCache } from '@endo/bundle-source/cache.js';
 import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import { makeStableFaucet } from './mintStable.js';
+
+import { startContract } from './start-contract-for-test.js';
 
 const myRequire = createRequire(import.meta.url);
 const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
@@ -15,10 +16,10 @@ const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
 
 /**
  * @typedef {{
-*   zoe: ZoeService,
+*   zoe: import("@agoric/zoe/src/zoeService/types.js").ZoeService,
 *   bundle: any,
 *   bundleCache: BundleCache,
-*   feeMintAccess: FeeMintAccess
+*   feeMintAccess: import ("@agoric/zoe").FeeMintAccess
 * }} TestContext
 */
 const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
@@ -57,11 +58,10 @@ test('Install the contract', async t => {
  * Alice trades by paying the price from the contract's terms.
  *
  * @param {ExecutionContext} t
- * @param {ZoeService} zoe
  * @param {ERef<Instance<AssetContractFn>>} instance
  * @param {Purse<'nat'>} purse
  * @param {string[]} choices
- */
+*/
 const alice = async (t, zoe, instance, purse, choices = ['map', 'scroll']) => {
   console.log("alice");
 
@@ -112,31 +112,6 @@ const alice = async (t, zoe, instance, purse, choices = ['map', 'scroll']) => {
 };
 
 test('Trade in IST rather than play money', async t => {
-  /**
-   * Start the contract, providing it with
-   * the IST issuer.
-   *
-   * @param {{ zoe: ZoeService, bundle: {} }} powers
-   */
-  const startContract = async ({ zoe, bundle }) => {
-    /** @type {ERef<Installation<AssetContractFn>>} */
-    console.log('CCCCCCCCCCCC');
-    const installation = E(zoe).install(bundle);
-    console.log('DDDDD');
-    const feeIssuer = await E(zoe).getFeeIssuer();
-    const feeBrand = await E(feeIssuer).getBrand();
-
-    const joinFutarchyFee = AmountMath.make(feeBrand, 100n * UNIT6);
-
-    console.log('Futarchy Fee', joinFutarchyFee);
-
-    return E(zoe).startInstance(
-      installation,
-      { Price: feeIssuer },
-      { joinFutarchyFee },
-    );
-  };
-
   console.log('AAAAAAA');
 
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;

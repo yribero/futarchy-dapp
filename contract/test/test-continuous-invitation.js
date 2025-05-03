@@ -7,6 +7,8 @@ import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import { makeStableFaucet } from './mintStable.js';
 
+import { startContract } from './start-contract-for-test.js';
+
 const myRequire = createRequire(import.meta.url);
 const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
 
@@ -15,10 +17,10 @@ const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
 
 /**
  * @typedef {{
-*   zoe: ZoeService,
+*   zoe: import ("@agoric/zoe").ZoeService,
 *   bundle: any,
 *   bundleCache: BundleCache,
-*   feeMintAccess: FeeMintAccess
+*   feeMintAccess: import ("@agoric/zoe").FeeMintAccess
 * }} TestContext
 */
 const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
@@ -58,7 +60,14 @@ const joinFutarchy = async (t, zoe, instance, purse) => {
 
   const toTrade = await E(publicFacet).joinFutarchy();
 
-  const userSeat = await E(zoe).offer(toTrade, proposal, { Price: pmt });
+  const userSeat = await E(zoe).offer(
+    toTrade,
+    proposal,
+    { Price: pmt },
+    {
+      arg0: "hello"
+    }
+  );
 
   return await userSeat.getPayout("CashYes");
 }
@@ -76,7 +85,7 @@ test('Install the contract', async t => {
  * Alice trades by paying the price from the contract's terms.
  *
  * @param {ExecutionContext} t
- * @param {ZoeService} zoe
+ * @param {import ("@agoric/zoe").ZoeService} zoe
  * @param {ERef<Instance<AssetContractFn>>} instance
  * @param {Purse<'nat'>} purse
  */
@@ -93,7 +102,7 @@ const makeOffer = async (t, zoe, instance, purse, payment) => {
 
   const proposal = {
     give: { CashYes: AmountMath.make(brands.CashYes, BigInt(100n * UNIT)) },
-    want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(100n * UNIT)) }
+    want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT)) }
   };
 
   const toTrade = await E(publicFacet).makeOffer({many: 0});
@@ -104,26 +113,6 @@ const makeOffer = async (t, zoe, instance, purse, payment) => {
 };
 
 test('Check No Exception on First Offer', async t => {
-  /**
-   * Start the contract, providing it with
-   * the IST issuer.
-   *
-   * @param {{ zoe: ZoeService, bundle: {} }} powers
-   */
-  const startContract = async ({ zoe, bundle }) => {
-    /** @type {ERef<Installation<AssetContractFn>>} */
-    const installation = E(zoe).install(bundle);
-    const feeIssuer = await E(zoe).getFeeIssuer();
-    const feeBrand = await E(feeIssuer).getBrand();
-    const joinFutarchyFee = AmountMath.make(feeBrand, 100n * UNIT6);
-
-    return E(zoe).startInstance(
-      installation,
-      { Price: feeIssuer },
-      { joinFutarchyFee },
-    );
-  };
-
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
   const { instance } = await startContract({ zoe, bundle });
 

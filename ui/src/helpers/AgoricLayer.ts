@@ -12,7 +12,6 @@ import { StoreApi, UseBoundStore } from 'zustand';
 import AppState from './AppState.ts';
 import { ContractWallet } from './FutarchyTypes.ts';
 import { subscribeLatest } from '@agoric/notifier';
-import { aD } from 'vitest/dist/reporters-w_64AS5f.js';
 
 export default class AgoricLayer {
 
@@ -109,7 +108,7 @@ export default class AgoricLayer {
                 useAppStore.setState({joined: true});
             }
 
-            const { contractInstance } = useAppStore.getState(); //TODO: get the notes instance
+            const { contractInstance } = useAppStore.getState();
 
             this.watcher.watchLatest<Array<[string, unknown]>>(
                 [Kind.Data, `published.wallet.${wallet.address}`],

@@ -7,6 +7,8 @@ import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import { makeStableFaucet } from './mintStable.js';
 
+import { startContract } from './start-contract-for-test.js';
+
 const myRequire = createRequire(import.meta.url);
 const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
 
@@ -112,26 +114,6 @@ const joinFutarchyWrongWant = async (t, zoe, instance, purse) => {
 };
 
 test('Ask for something in the join want', async t => {
-  /**
-   * Start the contract, providing it with
-   * the IST issuer.
-   *
-   * @param {{ zoe: ZoeService, bundle: {} }} powers
-   */
-  const startContract = async ({ zoe, bundle }) => {
-    /** @type {ERef<Installation<AssetContractFn>>} */
-    const installation = E(zoe).install(bundle);
-    const feeIssuer = await E(zoe).getFeeIssuer();
-    const feeBrand = await E(feeIssuer).getBrand();
-    const joinFutarchyFee = AmountMath.make(feeBrand, 100n * UNIT6);
-
-    return E(zoe).startInstance(
-      installation,
-      { Price: feeIssuer },
-      { joinFutarchyFee },
-    );
-  };
-
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
   const { instance } = await startContract({ zoe, bundle });
 
@@ -151,27 +133,6 @@ test('Ask for something in the join want', async t => {
 });
 
 test('Check all assets are transfered', async t => {
-  /**
-   * Start the contract, providing it with
-   * the IST issuer.
-   *
-   * @param {{ zoe: ZoeService, bundle: {} }} powers
-   */
-  const startContract = async ({ zoe, bundle }) => {
-    /** @type {ERef<Installation<AssetContractFn>>} */
-    const installation = E(zoe).install(bundle);
-    const feeIssuer = await E(zoe).getFeeIssuer();
-    const feeBrand = await E(feeIssuer).getBrand();
-    const joinFutarchyFee = AmountMath.make(feeBrand, 100n * UNIT6);
-
-    console.log('FEE BRAND', feeBrand);
-    return E(zoe).startInstance(
-      installation,
-      { Price: feeIssuer },
-      { joinFutarchyFee },
-    );
-  };
-
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
   const { instance } = await startContract({ zoe, bundle });
 

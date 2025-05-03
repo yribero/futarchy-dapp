@@ -60,7 +60,7 @@ const publishBrandInfo = async (chainStorage, board, brand) => {
 export const startFutarchyContract = async permittedPowers => {
   console.error('startFutarchyContract()...');
   const {
-    consume: { board, chainStorage, startUpgradable, zoe },
+    consume: { board, chainStorage, startUpgradable, zoe, chainTimerService },
     brand: {
       consume: { IST: istBrandP },
       produce: {
@@ -89,11 +89,6 @@ export const startFutarchyContract = async permittedPowers => {
     },
   } = permittedPowers;
 
-  console.log('PERMITTED POWERS',
-    '**************************************************',
-    permittedPowers,
-  );
-
   const istIssuer = await istIssuerP;
   const istBrand = await istBrandP;
 
@@ -101,6 +96,8 @@ export const startFutarchyContract = async permittedPowers => {
     joinFutarchyFee: AmountMath.make(istBrand, 100n * IST_UNIT),
     duration: BigInt (60 * 60 * 24 * 7)
   };
+
+  const storageNode = await E(chainStorage).makeChildNode('futarchy');
 
   // agoricNames gets updated each time; the promise space only once XXXXXXX
   const installation = await futarchyInstallationP;
@@ -110,6 +107,11 @@ export const startFutarchyContract = async permittedPowers => {
     issuerKeywordRecord: { Price: istIssuer },
     label: 'futarchy',
     terms,
+    privateArgs: {
+      storageNode,
+      board,
+      chainTimerService,
+    },
   });
   console.log('CoreEval script: started contract', instance);
 
@@ -185,6 +187,7 @@ const futarchyManifest = {
       chainStorage: true, // to publish boardAux info for NFT brand
       startUpgradable: true, // to start contract and save adminFacet
       zoe: true, // to get contract terms, including issuer/brand
+      chainTimerService: true,
     },
     installation: { consume: { futarchy: true } },
     issuer: { consume: { IST: true }, produce: { Item: true, CashNo: true, CashYes: true, SharesNo: true, SharesYes: true } },
