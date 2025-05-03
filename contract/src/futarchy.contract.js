@@ -540,7 +540,7 @@ export const start = async (zcf, privateArgs) => {
     publications.push(recordInHistory(offer));
 
     // RESOLVE
-    const resolveResult = resolve(offer, seat);
+    const resolveResult = resolve(offer);
 
     publications.push(...resolveResult.publications);
     
