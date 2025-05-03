@@ -75,9 +75,7 @@ test('Install the contract', async t => {
 const makeProposal = async (t, zoe, instance, purses, proposal, msg) => {
   const publicFacet = await E(zoe).getPublicFacet(instance);
 
-
   const toTrade = await E(publicFacet).makeOffer();
-
   
   const feePart = {};
 

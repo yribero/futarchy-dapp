@@ -13,13 +13,14 @@ const startContract = async ({ zoe, bundle }) => {
     const joinFutarchyFee = AmountMath.make(feeBrand, 100n * UNIT6);
     const chainStorage = makeMockChainStorageRoot();
 
-    return E(zoe).startInstance(
+    return await E(zoe).startInstance(
         installation,
         { Price: feeIssuer },
         { joinFutarchyFee },
         {
             storageNode: chainStorage.makeChildNode('futarchy'),
             board: chainStorage.makeChildNode('boardAux'),
+            isTest: true
         }
     );
 };

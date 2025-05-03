@@ -105,7 +105,7 @@ const makeOffer = async (t, zoe, instance, purse, payment) => {
     want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT)) }
   };
 
-  const toTrade = await E(publicFacet).makeOffer({many: 0});
+  const toTrade = await E(publicFacet).makeOffer();
 
   const fee = cashYesPurse.withdraw(AmountMath.make(brands.CashYes, 100n * UNIT));
 

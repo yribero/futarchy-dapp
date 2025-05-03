@@ -26,6 +26,8 @@ import { AmountShape } from '@agoric/ertp/src/typeGuards.js';
 import { atomicRearrange } from '@agoric/zoe/src/contractSupport/atomicTransfer.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import '@agoric/zoe/exported.js';
+import { makeMarshal } from '@endo/marshal';
+import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
 
 /**
  * @import {Amount} from '@agoric/ertp/src/types.js';
@@ -38,6 +40,31 @@ const CENT = UNIT / 100n;
 
 const SHARES = 100n;
 const CASH = 10_000n;
+
+/**
+ * @typedef {{
+ *    type: "child" | "update";
+ *    parent?: any;
+ *    id?: any;
+ *    node?: any;
+ *    data: any;
+ * }} PublishingPromise
+ */
+
+/**
+ * @typedef {{
+ *    type: "ask" | "bid" | undefined;
+ *    condition: 0 | 1 | undefined;
+ *    amount: bigint;
+ *    price: bigint;
+ *    total: bigint;
+ *    id: bigint;
+ *    address: string;
+ *    timestamp: any;
+ *    taker: boolean;
+ *    seat?: import ("@agoric/zoe").ZCFSeat;
+ * }} Offer
+*/
 
 /**
  * In addition to the standard `issuers` and `brands` terms,
@@ -75,15 +102,52 @@ export const start = async (zcf, privateArgs) => {
     brands
   } = zcf.getTerms();
 
-  const history = [];
+  let marshaller;
+  let timerService;
+
+  const { isTest } = privateArgs;
+
+  if (isTest === true) {
+    marshaller = makeMarshal();
+    timerService = buildManualTimer(console.log, 0n);
+  } else {
+    marshaller = await E(privateArgs.board).getPublishingMarshaller();
+    timerService = await E(privateArgs.chainTimerService);
+  }
+
+  let nextOfferId = 0n;
+  let nextDoneDealId = 0n;
+
+  /**
+   * @returns {bigint}
+   */
+  const getNextOfferId = () => {
+    const id = nextOfferId;
+    nextOfferId++;
+    return id;
+  }
+
+  /**
+   * @returns {bigint}
+   */
+  const getNextDoneDealId = () => {
+    const id = nextDoneDealId;
+    nextDoneDealId++;
+    return id;
+  }
+
+  /**
+   * @type {Offer[]}
+   */
   const offers = [];
   const doneDeals = [];
 
-  const notes = await E(privateArgs.storageNode).makeChildNode('history');
-  const publishedAsks = await E(privateArgs.storageNode).makeChildNode('offers');
-  const publishedContracts = await E(privateArgs.storageNode).makeChildNode('doneDeals');
+  const publishedHistory = await E(privateArgs.storageNode).makeChildNode('history');
+  const publishedOffers = await E(privateArgs.storageNode).makeChildNode('offers');
+  const publishedDoneDeals = await E(privateArgs.storageNode).makeChildNode('doneDeals');
   const publishedMedians = await E(privateArgs.storageNode).makeChildNode('medians');
   const publishedApproved = await E(privateArgs.storageNode).makeChildNode('approved');
+
   /**
    * a new ERTP mint for items, accessed thru the Zoe Contract Facet.
    * Note: `makeZCFMint` makes the associated brand and issuer available
@@ -125,6 +189,127 @@ export const start = async (zcf, privateArgs) => {
 
   /** a seat for allocating proceeds of sales */
   const proceeds = zcf.makeEmptySeatKit().zcfSeat;
+
+  const generateOfferObject = (ts, proposal) => {
+
+  }
+
+  /**
+   * 
+   * @param {Offer} offer
+   * 
+   * @returns {{
+   *  resolved: boolean,
+   *  publications: PublishingPromise[]
+   * }}
+   */
+  const resolve = (offer) => {
+    /**
+     * @type {PublishingPromise[]}
+     */
+    let publications = [];
+
+    /**
+     * @type {boolean}
+     */
+    let resolved = false;
+
+    //TODO
+    return {
+      resolved,
+      publications
+    };
+  };
+
+
+  const publishChild = async (parent, id, data) => {
+    const dataCopy = {... data}; //The data will be hardened in the next method and will become immutable
+
+    const child = await E(parent).makeChildNode(id.toString());
+
+    let marshalledData = JSON.stringify(await E(marshaller).toCapData(dataCopy));
+
+    await E(child).setValue(marshalledData);
+  }
+
+  const publishUpdate = async (node, data) => {
+    const dataCopy = {... data}; //The data will be hardened in the next method and will become immutable
+
+    let marshalledData = JSON.stringify(await E(marshaller).toCapData(dataCopy));
+
+    await E(node).setValue(marshalledData);
+  }
+
+  /**
+   * 
+   * @param {PublishingPromise[]} publications 
+   */
+  const publishAll = async (publications) => {
+    for (let publication of publications) {
+      if (publication.type === 'child') {
+        await publishChild(publication.parent, publication.id, publication.data);
+      } else {
+        await publishUpdate(publication.node, publication.data);
+      }
+    }
+  }
+
+  /**
+   * 
+   * @param {Offer} offer 
+   * 
+   * @returns {PublishingPromise}
+   */
+  const recordInHistory = (offer) => {
+    const offerToBeStored = {...offer};
+
+    offerToBeStored.seat = undefined;
+
+    return {
+      type: "child",
+      parent: publishedHistory,
+      id: offer.id,
+      data: offerToBeStored
+    };
+  };
+
+  /**
+   * @returns {Offer | undefined}
+   */
+    const getBestAsk = () => {
+      const asks = offers.filter(o => o.type === 'ask');
+  
+      asks.sort((b1, b2) => {
+        if(b1 > b2) {
+          return 1;
+        } else if (b1 < b2){
+          return -1;
+        } else {
+          return 0;
+        }
+      });
+  
+      return asks[0];
+    }
+
+  /**
+   * @returns {Offer | undefined}
+   */
+  const getBestBid = () => {
+    const bids = offers.filter(o => o.type === 'bid');
+
+    bids.sort((b1, b2) => {
+      if(b2 > b1) {
+        return 1;
+      } else if (b2 < b1){
+        return -1;
+      } else {
+        return 0;
+      }
+    });
+
+    return bids[0];
+  }
 
   const joinFutarchyHandler = joinerSeat => {
     const newCashNo = cashNoMint.mintGains({ CashNo: AmountMath.make(cashNoBrand, CASH * UNIT) });
@@ -180,11 +365,18 @@ export const start = async (zcf, privateArgs) => {
    * @param {import ("@agoric/zoe").ZCFSeat} seat
    */
   const makeOfferHandler = async (seat, offerArgs) => {
+    const ts = await timerService.getCurrentTimestamp();
+
     console.log('OFFER ARGS', offerArgs);
 
     const {want, give} = seat.getProposal();
 
     console.log('PROPOSAL', {want, give});
+
+    /**
+     * @type {PublishingPromise[]}
+     */
+    const publications = [];
 
     const matches = {
       "SharesYes": "CashYes",
@@ -192,6 +384,19 @@ export const start = async (zcf, privateArgs) => {
       "CashYes": "SharesYes",
       "CashNo": "SharesYes"
     }
+
+    let price;
+    let amount;
+
+    /**
+     * @type {"bid" | "ask" | undefined }
+     */
+    let type;
+
+    /**
+     * @type { 0 | 1 | undefined }
+     */
+    let condition;
 
     for (let key in matches) {
       if (want[key] == null && give[matches[key]] == null) {
@@ -203,8 +408,59 @@ export const start = async (zcf, privateArgs) => {
           want[key] != null && give[matches[key]] != null,
           `Mismatch: a request of ${key} should have a matching offer of ${matches[key]}`
         );
+
+        if (["CashYes", "CashNo"].includes(key)) {
+          price = want[key].value;
+          amount = give[matches[key]].value;
+          type = "ask";
+        } else {
+          amount = want[key].value;
+          price = give[matches[key]].value;
+          type = "bid";
+        }
+
+        if (["CashYes", "SharesYes"].includes(key)) {
+          condition = 1;
+        } else {
+          condition = 0;
+        }
       }
     }
+
+    const offer = {
+      id: getNextOfferId(),
+      price: price,
+      amount: amount,
+      total: BigInt ( price * amount ) / UNIT,
+      type: type,
+      address: offerArgs?.address,
+      resolved: false,
+      timestamp: ts.absValue,
+      taker: offerArgs?.taker,
+      condition: condition,
+      seat
+    };
+
+    console.log('OFFER', offer);
+    // WRITE IN HISTORY
+    
+    publications.push(recordInHistory(offer));
+
+    // RESOLVE
+    const resolveResult = resolve(offer);
+
+    publications.push(...resolveResult.publications);
+    
+    if (!resolveResult.resolved) {
+      //IF NOT RESOLVED, STORE
+      offers.push(offer);
+    }
+
+    // PUBLISH ALL: publishing everything in the end to avoid using await in the middle of executing the contract logic
+
+    await publishAll(publications);
+
+    // SECOND INVITATION FOR CANCELING
 
     /**
      * @param {import ("@agoric/zoe").ZCFSeat} seat
