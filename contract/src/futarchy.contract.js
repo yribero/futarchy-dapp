@@ -60,6 +60,7 @@ const CASH = 10_000n;
  *    total: bigint;
  *    id: bigint;
  *    address: string;
+ *    secret?: string;
  *    timestamp: any;
  *    taker: boolean;
  *    seat?: import ("@agoric/zoe").ZCFSeat;
@@ -190,8 +191,50 @@ export const start = async (zcf, privateArgs) => {
   /** a seat for allocating proceeds of sales */
   const proceeds = zcf.makeEmptySeatKit().zcfSeat;
 
-  const generateOfferObject = (ts, proposal) => {
+  /**
+   * 
+   * @param {*} proposal 
+   * @returns {import('@agoric/zoe').AmountKeywordRecord}
+   */
+  const getWantAmount = (proposal) => {
+    const assetName = Object.keys(proposal.want)[0];
+    const value = proposal.want[assetName].value;
 
+    switch(assetName) {
+      case 'CashNo':
+        return { CashNo: AmountMath.make(cashNoBrand, value) };
+      case 'CashYes':
+        return { CashYes: AmountMath.make(cashYesBrand, value) };
+      case 'SharesNo':
+        return { SharesNo: AmountMath.make(sharesNoBrand, value) };
+      case 'SharesYes':
+        return { SharesYes: AmountMath.make(sharesYesBrand, value) };
+      default:
+        throw new Error(`Could not match assetName '${assetName}' to any brand`);
+    }
+  }
+
+    /**
+   * 
+   * @param {*} proposal 
+   * @returns {import('@agoric/zoe').AmountKeywordRecord}
+   */
+  const getGiveAmount = (proposal) => {
+    const assetName = Object.keys(proposal.give)[0];
+    const value = proposal.give[assetName].value;
+
+    switch(assetName) {
+      case 'CashNo':
+        return { CashNo: AmountMath.make(cashNoBrand, value) };
+      case 'CashYes':
+        return { CashYes: AmountMath.make(cashYesBrand, value) };
+      case 'SharesNo':
+        return { SharesNo: AmountMath.make(sharesNoBrand, value) };
+      case 'SharesYes':
+        return { SharesYes: AmountMath.make(sharesYesBrand, value) };
+      default:
+        throw new Error(`Could not match assetName '${assetName}' to any brand`);
+    }
   }
 
   /**
@@ -212,11 +255,55 @@ export const start = async (zcf, privateArgs) => {
     /**
      * @type {boolean}
      */
-    let resolved = false;
+    let matched = false;
 
-    //TODO
+    let best;
+
+    /**
+     * @type {import('@agoric/zoe').TransferPart[]}
+     */
+    let exchanges = [];
+
+    if (offer.type === 'ask') {
+      best = getBestAsk(offer.secret, offer.condition);
+
+      if (best != null && best.price >= offer.price) {
+        matched = true;
+
+        exchanges.push(
+          [offer.seat, best.seat, getWantAmount(best.seat?.getProposal())],
+          [best.seat, offer.seat, getGiveAmount(best.seat?.getProposal())]
+        );
+      }
+    } else if (offer.type === 'bid') {
+      best = getBestBid(offer.secret, offer.condition);
+
+      if (best != null && best.price <= offer.price) {
+        matched = true;
+
+        exchanges.push(
+          [offer.seat, best.seat, getWantAmount(best.seat?.getProposal())],
+          [best.seat, offer.seat, getGiveAmount(best.seat?.getProposal())]
+        );
+      }
+    } else {
+      throw new Error('Your offer has no type');
+    }
+
+    if (matched) {
+      atomicRearrange(
+        zcf,
+        harden(exchanges),
+      );
+
+      best?.seat?.exit();
+      offer?.seat?.exit();
+
+      //TODO: add publication for doneDeal, remove/update best offer from vstorage, update the medians
+    }
+
     return {
-      resolved,
+      resolved: matched,
       publications
     };
   };
@@ -264,6 +351,7 @@ export const start = async (zcf, privateArgs) => {
     const offerToBeStored = {...offer};
 
     offerToBeStored.seat = undefined;
+    offerToBeStored.secret = undefined;
 
     return {
       type: "child",
@@ -274,29 +362,33 @@ export const start = async (zcf, privateArgs) => {
   };
 
   /**
+   * @param {string | undefined} secret used to identify the owner
+   * @param { 0 | 1 | undefined} condition
    * @returns {Offer | undefined}
    */
-    const getBestAsk = () => {
-      const asks = offers.filter(o => o.type === 'ask');
-  
-      asks.sort((b1, b2) => {
-        if(b1 > b2) {
-          return 1;
-        } else if (b1 < b2){
-          return -1;
-        } else {
-          return 0;
-        }
-      });
-  
-      return asks[0];
-    }
+  const getBestAsk = (secret, condition) => {
+    const asks = offers.filter(o => o.type === 'ask' && o.condition === condition && o.secret != secret);
+
+    asks.sort((b1, b2) => {
+      if(b1 > b2) {
+        return 1;
+      } else if (b1 < b2){
+        return -1;
+      } else {
+        return 0;
+      }
+    });
+
+    return asks[0];
+  }
 
   /**
+   * @param {string | undefined} secret used to identify the owner
+   * @param { 0 | 1 | undefined} condition
    * @returns {Offer | undefined}
    */
-  const getBestBid = () => {
-    const bids = offers.filter(o => o.type === 'bid');
+  const getBestBid = (secret, condition) => {
+    const bids = offers.filter(o => o.type === 'bid' && o.condition === condition && o.secret != secret);
 
     bids.sort((b1, b2) => {
       if(b2 > b1) {
@@ -434,6 +526,7 @@ export const start = async (zcf, privateArgs) => {
       total: BigInt ( price * amount ) / UNIT,
       type: type,
       address: offerArgs?.address,
+      secret: offerArgs?.secret,
       resolved: false,
       timestamp: ts.absValue,
       taker: offerArgs?.taker,
@@ -447,7 +540,7 @@ export const start = async (zcf, privateArgs) => {
     publications.push(recordInHistory(offer));
 
     // RESOLVE
-    const resolveResult = resolve(offer);
+    const resolveResult = resolve(offer, seat);
 
     publications.push(...resolveResult.publications);
     
