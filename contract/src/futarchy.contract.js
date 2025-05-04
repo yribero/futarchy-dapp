@@ -64,6 +64,7 @@ const CASH = 10_000n;
  *    timestamp: any;
  *    taker: boolean;
  *    seat?: import ("@agoric/zoe").ZCFSeat;
+ *    available?: boolean
  * }} Offer
 */
 
@@ -154,35 +155,35 @@ export const start = async (zcf, privateArgs) => {
    * Note: `makeZCFMint` makes the associated brand and issuer available
    * in the contract's terms.
    */
-  const cashNoMint  = await zcf.makeZCFMint('CashNo');
+  const cashNoMint = await zcf.makeZCFMint('CashNo');
   const { brand: cashNoBrand } = cashNoMint.getIssuerRecord();
 
-  const cashYesMint  = await zcf.makeZCFMint('CashYes');
+  const cashYesMint = await zcf.makeZCFMint('CashYes');
   const { brand: cashYesBrand } = cashYesMint.getIssuerRecord();
 
-  const sharesNoMint  = await zcf.makeZCFMint('SharesNo');
+  const sharesNoMint = await zcf.makeZCFMint('SharesNo');
   const { brand: sharesNoBrand } = sharesNoMint.getIssuerRecord();
 
-  const sharesYesMint  = await zcf.makeZCFMint('SharesYes');
+  const sharesYesMint = await zcf.makeZCFMint('SharesYes');
   const { brand: sharesYesBrand } = sharesYesMint.getIssuerRecord();
 
-  const offerProposalShape = harden ({
+  const offerProposalShape = harden({
     give: M.or(
-      {CashYes: M.gt(AmountMath.make(cashYesBrand, 0n))},
-      {CashNo: M.gt(AmountMath.make(cashNoBrand, 0n))},
-      {SharesYes: M.eq(AmountMath.make(sharesYesBrand, 1n * UNIT))}, //TODO allow to trade more than a share
-      {SharesNo: M.eq(AmountMath.make(sharesNoBrand, 1n * UNIT))} //TODO allow to trade more than a share
+      { CashYes: M.gt(AmountMath.make(cashYesBrand, 0n)) },
+      { CashNo: M.gt(AmountMath.make(cashNoBrand, 0n)) },
+      { SharesYes: M.eq(AmountMath.make(sharesYesBrand, 1n * UNIT)) }, //TODO allow to trade more than a share
+      { SharesNo: M.eq(AmountMath.make(sharesNoBrand, 1n * UNIT)) } //TODO allow to trade more than a share
     ),
     want: M.or(
-      {CashYes: M.gt(AmountMath.make(cashYesBrand, 0n))},
-      {CashNo: M.gt(AmountMath.make(cashNoBrand, 0n))},
-      {SharesYes: M.eq(AmountMath.make(sharesYesBrand, 1n * UNIT))}, //TODO allow to trade more than a share
-      {SharesNo: M.eq(AmountMath.make(sharesNoBrand, 1n * UNIT))} //TODO allow to trade more than a share
+      { CashYes: M.gt(AmountMath.make(cashYesBrand, 0n)) },
+      { CashNo: M.gt(AmountMath.make(cashNoBrand, 0n)) },
+      { SharesYes: M.eq(AmountMath.make(sharesYesBrand, 1n * UNIT)) }, //TODO allow to trade more than a share
+      { SharesNo: M.eq(AmountMath.make(sharesNoBrand, 1n * UNIT)) } //TODO allow to trade more than a share
     ),
     exit: M.any(),
   });
 
-  const joinProposalShape = harden ({
+  const joinProposalShape = harden({
     give: { Price: M.eq(joinFutarchyFee) },
     want: {},
     exit: M.any(),
@@ -200,7 +201,7 @@ export const start = async (zcf, privateArgs) => {
     const assetName = Object.keys(proposal.want)[0];
     const value = proposal.want[assetName].value;
 
-    switch(assetName) {
+    switch (assetName) {
       case 'CashNo':
         return { CashNo: AmountMath.make(cashNoBrand, value) };
       case 'CashYes':
@@ -214,16 +215,16 @@ export const start = async (zcf, privateArgs) => {
     }
   }
 
-    /**
-   * 
-   * @param {*} proposal 
-   * @returns {import('@agoric/zoe').AmountKeywordRecord}
-   */
+  /**
+ * 
+ * @param {*} proposal 
+ * @returns {import('@agoric/zoe').AmountKeywordRecord}
+ */
   const getGiveAmount = (proposal) => {
     const assetName = Object.keys(proposal.give)[0];
     const value = proposal.give[assetName].value;
 
-    switch(assetName) {
+    switch (assetName) {
       case 'CashNo':
         return { CashNo: AmountMath.make(cashNoBrand, value) };
       case 'CashYes':
@@ -259,47 +260,44 @@ export const start = async (zcf, privateArgs) => {
 
     let best;
 
-    /**
-     * @type {import('@agoric/zoe').TransferPart[]}
-     */
-    let exchanges = [];
-
     if (offer.type === 'ask') {
       best = getBestAsk(offer.secret, offer.condition);
 
       if (best != null && best.price >= offer.price) {
         matched = true;
-
-        exchanges.push(
-          [offer.seat, best.seat, getWantAmount(best.seat?.getProposal())],
-          [best.seat, offer.seat, getGiveAmount(best.seat?.getProposal())]
-        );
       }
     } else if (offer.type === 'bid') {
       best = getBestBid(offer.secret, offer.condition);
 
       if (best != null && best.price <= offer.price) {
         matched = true;
-
-        exchanges.push(
-          [offer.seat, best.seat, getWantAmount(best.seat?.getProposal())],
-          [best.seat, offer.seat, getGiveAmount(best.seat?.getProposal())]
-        );
       }
     } else {
       throw new Error('Your offer has no type');
     }
 
-    if (matched) {
+    if (matched && best != null) {
       atomicRearrange(
         zcf,
-        harden(exchanges),
+        harden([
+          [offer.seat, best.seat, getWantAmount(best.seat?.getProposal())],
+          [best.seat, offer.seat, getGiveAmount(best.seat?.getProposal())]
+        ]),
       );
 
       best?.seat?.exit();
       offer?.seat?.exit();
 
-      //TODO: add publication for doneDeal, remove/update best offer from vstorage, update the medians
+      offer.available = false;
+      best.available = false;
+
+      //TODO: add publication for doneDeal, update the medians
+      publications.push(recordInPublishedOffer(offer));
+      publications.push(recordInPublishedOffer(best));
+    } else {
+      offer.available = true;
+
+      publications.push(recordInPublishedOffer(offer));
     }
 
     return {
@@ -308,9 +306,8 @@ export const start = async (zcf, privateArgs) => {
     };
   };
 
-
   const publishChild = async (parent, id, data) => {
-    const dataCopy = {... data}; //The data will be hardened in the next method and will become immutable
+    const dataCopy = { ...data }; //The data will be hardened in the next method and will become immutable
 
     const child = await E(parent).makeChildNode(id.toString());
 
@@ -320,7 +317,7 @@ export const start = async (zcf, privateArgs) => {
   }
 
   const publishUpdate = async (node, data) => {
-    const dataCopy = {... data}; //The data will be hardened in the next method and will become immutable
+    const dataCopy = { ...data }; //The data will be hardened in the next method and will become immutable
 
     let marshalledData = JSON.stringify(await E(marshaller).toCapData(dataCopy));
 
@@ -348,14 +345,34 @@ export const start = async (zcf, privateArgs) => {
    * @returns {PublishingPromise}
    */
   const recordInHistory = (offer) => {
-    const offerToBeStored = {...offer};
+    const offerToBeStored = { ...offer };
 
     offerToBeStored.seat = undefined;
-    offerToBeStored.secret = undefined;
+    delete offerToBeStored.secret;
 
     return {
       type: "child",
       parent: publishedHistory,
+      id: offer.id,
+      data: offerToBeStored
+    };
+  };
+
+  /**
+ * 
+ * @param {Offer} offer 
+ * 
+ * @returns {PublishingPromise}
+ */
+  const recordInPublishedOffer = (offer) => {
+    const offerToBeStored = { ...offer };
+
+    offerToBeStored.seat = undefined;
+    delete offerToBeStored.secret;
+
+    return {
+      type: "child",
+      parent: publishedOffers,
       id: offer.id,
       data: offerToBeStored
     };
@@ -370,9 +387,9 @@ export const start = async (zcf, privateArgs) => {
     const asks = offers.filter(o => o.type === 'ask' && o.condition === condition && o.secret != secret);
 
     asks.sort((b1, b2) => {
-      if(b1 > b2) {
+      if (b1 > b2) {
         return 1;
-      } else if (b1 < b2){
+      } else if (b1 < b2) {
         return -1;
       } else {
         return 0;
@@ -391,9 +408,9 @@ export const start = async (zcf, privateArgs) => {
     const bids = offers.filter(o => o.type === 'bid' && o.condition === condition && o.secret != secret);
 
     bids.sort((b1, b2) => {
-      if(b2 > b1) {
+      if (b2 > b1) {
         return 1;
-      } else if (b2 < b1){
+      } else if (b2 < b1) {
         return -1;
       } else {
         return 0;
@@ -435,15 +452,15 @@ export const start = async (zcf, privateArgs) => {
   const joinFutarchy = () => {
     return zcf.makeInvitation(joinFutarchyHandler, 'Join Futarchy', undefined, joinProposalShape);
   }
-  
-/**
- * @returns { {
- *  CASH: bigint,
- *  SHARES: bigint
- *  UNIT: bigint
- *  CENT: bigint
- * } }
- */
+
+  /**
+   * @returns { {
+   *  CASH: bigint,
+   *  SHARES: bigint
+   *  UNIT: bigint
+   *  CENT: bigint
+   * } }
+   */
   const getLimits = () => {
     return {
       CASH,
@@ -461,9 +478,9 @@ export const start = async (zcf, privateArgs) => {
 
     console.log('OFFER ARGS', offerArgs);
 
-    const {want, give} = seat.getProposal();
+    const { want, give } = seat.getProposal();
 
-    console.log('PROPOSAL', {want, give});
+    console.log('PROPOSAL', { want, give });
 
     /**
      * @type {PublishingPromise[]}
@@ -523,7 +540,7 @@ export const start = async (zcf, privateArgs) => {
       id: getNextOfferId(),
       price: price,
       amount: amount,
-      total: BigInt ( price * amount ) / UNIT,
+      total: BigInt(price * amount) / UNIT,
       type: type,
       address: offerArgs?.address,
       secret: offerArgs?.secret,
@@ -536,14 +553,14 @@ export const start = async (zcf, privateArgs) => {
 
     console.log('OFFER', offer);
     // WRITE IN HISTORY
-    
+
     publications.push(recordInHistory(offer));
 
     // RESOLVE
     const resolveResult = resolve(offer);
 
     publications.push(...resolveResult.publications);
-    
+
     if (!resolveResult.resolved) {
       //IF NOT RESOLVED, STORE
       offers.push(offer);
@@ -573,7 +590,7 @@ export const start = async (zcf, privateArgs) => {
 
     //seat.exit(); Only if the offer is resolved
 
-    const secondInviteObj =  harden({
+    const secondInviteObj = harden({
       invitationMakers: Far('second invitation maker', {
         makeSecondInvitation: () =>
           zcf.makeInvitation(
@@ -597,12 +614,12 @@ export const start = async (zcf, privateArgs) => {
     return secondInviteObj;
   }
 
-  const cancelOffer  = async (seat, offerArgs) => {
+  const cancelOffer = async (seat, offerArgs) => {
     console.log('CANCEL ARGS', offerArgs);
     //TODO: with the continuous invitation pattern
   }
 
-  const redeem  = async (seat, offerArgs) => {
+  const redeem = async (seat, offerArgs) => {
     //TODO: exchange cash and shares for IST
   }
 
