@@ -1,16 +1,12 @@
-import { test as anyTest } from '../prepare-test-env-ava.js';
 import { createRequire } from 'module';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/far';
 import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { makeNodeBundleCache } from '@endo/bundle-source/cache.js';
 import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import { makeMockChainStorageRoot } from '@agoric/internal/src/storage-test-utils.js';
-import { withdrawFromSeat } from '@agoric/zoe/src/contractSupport/index.js';
 
 import { makeStableFaucet } from '../mintStable.js';
-import { startContract } from '../start-contract-for-test.js';
-import { deepEqual } from 'assert';
 
 const myRequire = createRequire(import.meta.url);
 const contractPath = myRequire.resolve(`../../src/futarchy.contract.js`);
@@ -149,7 +145,7 @@ const makeUser = async (issuers, seat) => {
  * @param {*} t 
  * @param { RemoteOffer[] } remoteOffers 
  */
-const skeleton = async (t, instance, remoteOffers) => {
+const joinFutarchyAndMakeOffers = async (t, instance, remoteOffers) => {
     const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
 
     const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
@@ -178,4 +174,4 @@ const skeleton = async (t, instance, remoteOffers) => {
 /**
  * @exports {RemoteOffer}
  */
-export { UNIT6, makeTestContext, joinFutarchy, makeProposal, createInstance, makeUser, skeleton };
+export { UNIT6, makeTestContext, joinFutarchy, makeProposal, createInstance, makeUser, joinFutarchyAndMakeOffers };

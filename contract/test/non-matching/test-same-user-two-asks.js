@@ -3,7 +3,7 @@ import { E } from '@endo/far';
 import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { AmountMath } from '@agoric/ertp';
 
-import { UNIT6, makeTestContext, createInstance, skeleton } from './boiler-plate.js';
+import { UNIT6, makeTestContext, createInstance, joinFutarchyAndMakeOffers } from './boiler-plate.js';
 
 /** @typedef {typeof import('../../src/futarchy.contract.js').start} AssetContractFn */
 /** @typedef {Awaited<ReturnType<import('@endo/bundle-source/cache.js').makeNodeBundleCache>>} BundleCache */
@@ -97,7 +97,7 @@ test('The same user makes two asks', async t => {
     ];
 
     try {
-        await skeleton(t, instance, remoteOffers);
+        await joinFutarchyAndMakeOffers(t, instance, remoteOffers);
 
         console.log('KEYS', await E(chainStorage).keys());
     } catch (e) {

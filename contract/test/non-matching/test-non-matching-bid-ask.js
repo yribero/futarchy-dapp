@@ -47,10 +47,10 @@ test('The same user makes matching ask and bid, not resolved', async t => {
         }, {
             address: 'b',
             amount: 1000000n,
-            total: 100000000n,
-            condition: 0,
+            total: 99000000n,
+            condition: 1,
             id: 1n,
-            price: 100000000n,
+            price: 99000000n,
             resolved: false,
             taker: false,
             timestamp: 0n,
@@ -77,8 +77,8 @@ test('The same user makes matching ask and bid, not resolved', async t => {
         },
         {
             proposal: {
-                give: { CashNo: AmountMath.make(brands.CashNo, BigInt(100n * UNIT6)) },
-                want: { SharesNo: AmountMath.make(brands.SharesNo, BigInt(1n * UNIT6)) }
+                give: { CashYes: AmountMath.make(brands.CashYes, BigInt(99n * UNIT6)) },
+                want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT6)) }
             },
             args: {
                 address: "b",
