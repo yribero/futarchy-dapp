@@ -3,7 +3,7 @@ import { E } from '@endo/far';
 import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { AmountMath } from '@agoric/ertp';
 
-import { UNIT6, makeTestContext, createInstance, joinFutarchyAndMakeOffers } from './boiler-plate.js';
+import { UNIT6, makeTestContext, createInstance, joinFutarchyAndMakeOffers } from '../boiler-plate.js';
 
 /** @typedef {typeof import('../../src/futarchy.contract.js').start} AssetContractFn */
 /** @typedef {Awaited<ReturnType<import('@endo/bundle-source/cache.js').makeNodeBundleCache>>} BundleCache */
@@ -25,7 +25,7 @@ const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
  * @import {Purse} from '@agoric/ertp/src/types.js';
  */
 
-/** @import {RemoteOffer} from './boiler-plate.js'*/
+/** @import {RemoteOffer} from '../boiler-plate.js'*/
 
 test.before(async t => (t.context = await makeTestContext(t)));
 

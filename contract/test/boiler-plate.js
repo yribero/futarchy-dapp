@@ -6,30 +6,35 @@ import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import { makeMockChainStorageRoot } from '@agoric/internal/src/storage-test-utils.js';
 
-import { makeStableFaucet } from '../mintStable.js';
+import { makeStableFaucet } from './mintStable.js';
 
 const myRequire = createRequire(import.meta.url);
-const contractPath = myRequire.resolve(`../../src/futarchy.contract.js`);
+const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
 
 /**
+ * 
  * @typedef {{
  *     seat: import ("@agoric/zoe").UserSeat
  *     purses: any
  * }} User
  * 
+ * @typedef {function(UserSeat): any} SeatHook
+ *  
  * @typedef {{
  *    proposal: {
  *      give: any;
  *      want: any;
  *    }
  *    args: any;
- *    user: string
+ *    user: string,
+ *    hook?: SeatHook
  * }} RemoteOffer
  *
  * @import {ERef} from '@endo/far';
  * @import {ExecutionContext} from 'ava';
  * @import {Instance} from '@agoric/zoe/src/zoeService/utils.js';
  * @import {Purse} from '@agoric/ertp/src/types.js';
+ * @import {UserSeat} from '@agoric/zoe';
  */
 
 const UNIT6 = 1_000_000n;
@@ -84,7 +89,9 @@ const makeProposal = async (t, zoe, instance, purses, proposal, args = {}) => {
         args
     );
 
-    return await E(seat).getOfferResult();
+    await E(seat).getOfferResult();
+
+    return seat;
 };
 
 const createInstance = async (t) => {
@@ -167,7 +174,11 @@ const joinFutarchyAndMakeOffers = async (t, instance, remoteOffers) => {
             purses.push(users[remoteOffer.user].purses[assetName]);
         }
 
-        await makeProposal(t, zoe, instance, purses, remoteOffer.proposal, remoteOffer.args);
+        const result = await makeProposal(t, zoe, instance, purses, remoteOffer.proposal, remoteOffer.args);
+
+        if (remoteOffer.hook != null) {
+            remoteOffer.hook(result);
+        }
     }
 }
 

@@ -22,7 +22,7 @@ const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
 
 test.before(async t => (t.context = await makeTestContext(t)));
 
-test('The same user makes matching ask and bid, not resolved', async t => {
+test('Different users make matching ask and bid', async t => {
     const { zoe } = t.context;
 
     const { instance, chainStorage }  = await createInstance(t);
@@ -48,7 +48,7 @@ test('The same user makes matching ask and bid, not resolved', async t => {
             address: 'b',
             amount: 1000000n,
             total: 100000000n,
-            condition: 0,
+            condition: 1,
             id: 1n,
             price: 100000000n,
             resolved: false,
@@ -73,19 +73,21 @@ test('The same user makes matching ask and bid, not resolved', async t => {
                 secret: "a",
                 taker: false
             },
-            user: "a"
+            user: "a",
+            hook: async (seat) => console.log('PAYOUTS', await E(seat).getPayouts())
         },
         {
             proposal: {
-                give: { CashNo: AmountMath.make(brands.CashNo, BigInt(100n * UNIT6)) },
-                want: { SharesNo: AmountMath.make(brands.SharesNo, BigInt(1n * UNIT6)) }
+                give: { CashYes: AmountMath.make(brands.CashYes, BigInt(100n * UNIT6)) },
+                want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT6)) }
             },
             args: {
                 address: "b",
                 secret: "b",
                 taker: false
             },
-            user: "b"
+            user: "b",
+            hook: async (seat) => console.log('PAYOUTS', await E(seat).getPayouts())
         }
     ];
 
@@ -131,3 +133,13 @@ test('The same user makes matching ask and bid, not resolved', async t => {
 
     t.true(ex == null);
 });
+
+//NEXT tests:
+
+//match ask bid
+//match best bid among two
+//match best bid among two, reverse order
+//match best bid among many, ordered
+//match best bid among many, scrambled
+
+//check the median after 1,2,3,4,5,6,7,8 done deals

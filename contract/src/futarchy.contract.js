@@ -31,7 +31,7 @@ import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
 
 /**
  * @import {Amount} from '@agoric/ertp/src/types.js';
- *
+ * @import {AmountKeywordRecord} from '@agoric/zoe';
  */
 const { Fail, quote: q } = assert;
 
@@ -49,9 +49,7 @@ const CASH = 10_000n;
  *    node?: any;
  *    data: any;
  * }} PublishingPromise
- */
-
-/**
+ *
  * @typedef {{
  *    type: "ask" | "bid" | undefined;
  *    condition: 0 | 1 | undefined;
@@ -66,6 +64,17 @@ const CASH = 10_000n;
  *    seat?: import ("@agoric/zoe").ZCFSeat;
  *    available?: boolean
  * }} Offer
+ * 
+ * @typedef {{
+ *     id: bigint;
+ *     from: string;
+ *     to: string;
+ *     condition: 0 | 1 ;
+ *     amount: bigint;
+ *     price: bigint;
+ *     total: bigint;
+ *     timestamp: bigint;
+ * }} DoneDeal
 */
 
 /**
@@ -142,7 +151,16 @@ export const start = async (zcf, privateArgs) => {
    * @type {Offer[]}
    */
   const offers = [];
-  const doneDeals = [];
+
+  /**
+   * @type {DoneDeal[][]}
+   */
+  const doneDeals = [[], []];
+
+  /**
+   * @type {bigint []}
+   */
+  const medians = [0n, 0n];
 
   const publishedHistory = await E(privateArgs.storageNode).makeChildNode('history');
   const publishedOffers = await E(privateArgs.storageNode).makeChildNode('offers');
@@ -194,13 +212,11 @@ export const start = async (zcf, privateArgs) => {
 
   /**
    * 
-   * @param {*} proposal 
-   * @returns {import('@agoric/zoe').AmountKeywordRecord}
+   * @param {string} assetName 
+   * @param {*} value 
+   * @returns {AmountKeywordRecord}
    */
-  const getWantAmount = (proposal) => {
-    const assetName = Object.keys(proposal.want)[0];
-    const value = proposal.want[assetName].value;
-
+  const getAmount = (assetName, value) => {
     switch (assetName) {
       case 'CashNo':
         return { CashNo: AmountMath.make(cashNoBrand, value) };
@@ -215,26 +231,72 @@ export const start = async (zcf, privateArgs) => {
     }
   }
 
+   /**
+   * 
+   * @param {*} proposal 
+   * @returns {AmountKeywordRecord}
+   */
+  const getWantAmount = (proposal) => {
+    const assetName = Object.keys(proposal.want)[0];
+    const value = proposal.want[assetName].value;
+
+    return getAmount(assetName, value);
+  }
+
   /**
  * 
  * @param {*} proposal 
- * @returns {import('@agoric/zoe').AmountKeywordRecord}
+ * @returns {AmountKeywordRecord}
  */
   const getGiveAmount = (proposal) => {
     const assetName = Object.keys(proposal.give)[0];
     const value = proposal.give[assetName].value;
 
-    switch (assetName) {
-      case 'CashNo':
-        return { CashNo: AmountMath.make(cashNoBrand, value) };
-      case 'CashYes':
-        return { CashYes: AmountMath.make(cashYesBrand, value) };
-      case 'SharesNo':
-        return { SharesNo: AmountMath.make(sharesNoBrand, value) };
-      case 'SharesYes':
-        return { SharesYes: AmountMath.make(sharesYesBrand, value) };
-      default:
-        throw new Error(`Could not match assetName '${assetName}' to any brand`);
+    return getAmount(assetName, value);
+  }
+
+  /**
+   * @param {DoneDeal} doneDeal
+   * @returns {PublishingPromise}
+   */
+  const updateMedians = (doneDeal) => {
+    doneDeals[doneDeal.condition].push(doneDeal);
+
+    if (doneDeals[doneDeal.condition].length > 7) {
+      doneDeals[doneDeal.condition].shift();
+    }
+
+    const values = doneDeals[doneDeal.condition].map(dd => dd.price);
+
+    if (values.length === 0) {
+      medians[doneDeal.condition] = 0n;
+    }
+  
+    let lastSeven = values.slice(Math.max(values.length - 7, 0));
+
+    // Sorting values, preventing original array
+    // from being mutated.
+    lastSeven = [...lastSeven].sort((a, b) => {
+      if (b > a) {
+        return 1;
+      } else if (b < a) {
+        return -1;
+      } else {
+        return 0;
+      }
+    });;
+  
+    const half = Math.floor(lastSeven.length / 2);
+  
+    medians[doneDeal.condition] = (lastSeven.length % 2
+      ? lastSeven[half]
+      : (lastSeven[half - 1] + lastSeven[half]) / 2n
+    );
+
+    return {
+      type: "update",
+      node: publishedMedians,
+      data: [... medians]
     }
   }
 
@@ -247,7 +309,7 @@ export const start = async (zcf, privateArgs) => {
    *  publications: PublishingPromise[]
    * }}
    */
-  const resolve = (offer) => {
+  const resolve = (offer, ts) => {
     /**
      * @type {PublishingPromise[]}
      */
@@ -259,18 +321,26 @@ export const start = async (zcf, privateArgs) => {
     let matched = false;
 
     let best;
+    let from;
+    let to;
 
     if (offer.type === 'ask') {
-      best = getBestAsk(offer.secret, offer.condition);
+      best = getBestBid(offer.secret, offer.condition);
 
       if (best != null && best.price >= offer.price) {
         matched = true;
+
+        from = offer.address;
+        to = best.address;
       }
     } else if (offer.type === 'bid') {
-      best = getBestBid(offer.secret, offer.condition);
+      best = getBestAsk(offer.secret, offer.condition);
 
       if (best != null && best.price <= offer.price) {
         matched = true;
+
+        from = best.address;
+        to = offer.address;
       }
     } else {
       throw new Error('Your offer has no type');
@@ -291,9 +361,24 @@ export const start = async (zcf, privateArgs) => {
       offer.available = false;
       best.available = false;
 
-      //TODO: add publication for doneDeal, update the medians
+      /**
+       * @type {DoneDeal}
+       */
+      const doneDeal = {
+        id: getNextDoneDealId(),
+        from: from || "",
+        to: to || "",
+        condition: best.condition || 0,
+        amount: best.amount,
+        price: best.price,
+        total: best.total,
+        timestamp: ts
+      };
+
       publications.push(recordInPublishedOffer(offer));
       publications.push(recordInPublishedOffer(best));
+      publications.push(recordDoneDeal(doneDeal));
+      publications.push(updateMedians(doneDeal));
     } else {
       offer.available = true;
 
@@ -377,6 +462,22 @@ export const start = async (zcf, privateArgs) => {
       data: offerToBeStored
     };
   };
+
+  /**
+   * @param {DoneDeal} doneDeal
+   * @returns {PublishingPromise}
+   */
+  const recordDoneDeal = (doneDeal) => {
+    /**
+     * @type {PublishingPromise}
+     */
+    return {
+      type: "child",
+      parent: publishedDoneDeals,
+      id: doneDeal.id,
+      data: { ...doneDeal }
+    };
+  }
 
   /**
    * @param {string | undefined} secret used to identify the owner
@@ -557,7 +658,7 @@ export const start = async (zcf, privateArgs) => {
     publications.push(recordInHistory(offer));
 
     // RESOLVE
-    const resolveResult = resolve(offer);
+    const resolveResult = resolve(offer, ts);
 
     publications.push(...resolveResult.publications);
 

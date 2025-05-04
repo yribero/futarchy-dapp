@@ -153,6 +153,9 @@ test('History is written', async t => {
         type: 'ask'
     };
 
+    /**
+     * @type{any}
+     */
     let actual;
 
     try {
