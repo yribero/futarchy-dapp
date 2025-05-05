@@ -3,7 +3,7 @@ import { E } from '@endo/far';
 import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { AmountMath } from '@agoric/ertp';
 
-import { UNIT6, makeTestContext, createInstance, joinFutarchyAndMakeOffers, assertEqualObjects } from '../boiler-plate.js';
+import { UNIT6, makeTestContext, createInstance, joinFutarchyAndMakeOffers } from '../boiler-plate.js';
 
 /** @typedef {typeof import('../../src/futarchy.contract.js').start} AssetContractFn */
 /** @typedef {Awaited<ReturnType<import('@endo/bundle-source/cache.js').makeNodeBundleCache>>} BundleCache */
@@ -22,7 +22,7 @@ const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
 
 test.before(async t => (t.context = await makeTestContext(t)));
 
-test('Different users make non matching bid and ask', async t => {
+test('Different users make non matching ask and bid', async t => {
     const { zoe } = t.context;
 
     const { instance, chainStorage }  = await createInstance(t);
@@ -33,29 +33,28 @@ test('Different users make non matching bid and ask', async t => {
 
     const expectedResponses = [
         {
-            address: 'b',
-            amount: 1000000n,
-            total: 99000000n,
-            condition: 1,
-            id: 0n,
-            price: 99000000n,
-            available: undefined,
-            taker: false,
-            timestamp: 0n,
-            type: 'bid',
-            secret: undefined
-        },
-        {
             address: 'a',
             amount: 1000000n,
             total: 100000000n,
             condition: 1,
-            id: 1n,
+            id: 0n,
             price: 100000000n,
             available: undefined,
             taker: false,
             timestamp: 0n,
             type: 'ask',
+            secret: undefined
+        }, {
+            address: 'b',
+            amount: 1000000n,
+            total: 99000000n,
+            condition: 1,
+            id: 1n,
+            price: 99000000n,
+            available: undefined,
+            taker: false,
+            timestamp: 0n,
+            type: 'bid',
             secret: undefined
         }
     ];
@@ -64,18 +63,6 @@ test('Different users make non matching bid and ask', async t => {
      * @type{RemoteOffer[]}
      */
     const remoteOffers = [
-        {
-            proposal: {
-                give: { CashYes: AmountMath.make(brands.CashYes, BigInt(99n * UNIT6)) },
-                want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT6)) }
-            },
-            args: {
-                address: "b",
-                secret: "b",
-                taker: false
-            },
-            user: "b"
-        },
         {
             proposal: {
                 give: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT6)) },
@@ -87,6 +74,18 @@ test('Different users make non matching bid and ask', async t => {
                 taker: false
             },
             user: "a"
+        },
+        {
+            proposal: {
+                give: { CashYes: AmountMath.make(brands.CashYes, BigInt(99n * UNIT6)) },
+                want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT6)) }
+            },
+            args: {
+                address: "b",
+                secret: "b",
+                taker: false
+            },
+            user: "b"
         }
     ];
 
@@ -116,7 +115,9 @@ test('Different users make non matching bid and ask', async t => {
          */
         const actual = await E(chainStorage).getBody(`mockChainStorageRoot.futarchy.history.${i}`);
 
-        assertEqualObjects(t, actual, expectedResponses[i]);
+        Object.keys(expectedResponses[i]).forEach( key => {
+            t.true(actual[key] === expectedResponses[i][key]);    
+        })
     }
 
     for (let i = 0; i < 2; i++) {

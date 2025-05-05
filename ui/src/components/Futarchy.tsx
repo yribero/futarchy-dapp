@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StoreApi, UseBoundStore } from 'zustand';
 import type { ContractInvitationSpec } from '@agoric/smart-wallet/src/invitations';
 import { stringifyAmountValue } from '@agoric/ui-components';
@@ -19,12 +19,9 @@ type FutarchyProps = {
 
 const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
 
-    const { wallet, purses, medians, brands, asks, bids } = useAppStore.getState();
+    const { wallet, purses, medians, brands } = useAppStore.getState();
 
-    /*let medians: number[] = [0, 0];
-    let brands: Record<string, unknown>;
-    let asks: DamOffer[] = [];
-    let bids: DamOffer[] = [];*/
+    const [offers, setOffers] = useState<DamOffer[]>([]);
 
     const getStringAmount = (brandPetname: string): string => {
         const purse = purses?.find(p => p.brandPetname === brandPetname);
@@ -130,19 +127,13 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
     }
 
     const getoffers = (type: string, condition: number) => {
-        if (type === 'asks') {
-            return asks?.filter(a => a.condition === condition);
-        } else if (type === 'bids') {
-            console.log('BIDS', bids);
-            return bids?.filter(b => b.condition === condition);
-        }
-
-        console.warn(`Type must be bids|asks. It was ${type}`);
-        return [];
+        return offers
+            .filter(a => a.condition === condition)
+            .filter(a => a.type === type);
     }
 
     const setup = () => {
-        agoricLayer.startWatcher<Array<bigint>>(Kind.Data, 'published.dam.medians', (mediansUpdate) => {
+        agoricLayer.startWatcher<Array<bigint>>(Kind.Data, 'published.futarchy.medians', (mediansUpdate) => {
             console.log('MEDIANS UPDATE', mediansUpdate);
             console.log('MEDIANS UPDATE TYPE', typeof mediansUpdate);
 
@@ -157,41 +148,23 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
             useAppStore.setState({ brands: Object.fromEntries(brandsUpdate) });
         }, true);
 
-        agoricLayer.startWatcher<Array<[DamOffer]>>(Kind.Children, 'published.futarchy.offers', async (offers) => {
-            console.log('OFFERS', offers)
-            for (let i = 0; i < offers.length; i++) {
-                const id = offers[i];
+        agoricLayer.startWatcher<Array<[DamOffer]>>(Kind.Children, 'published.futarchy.offers', async (offersUpdate) => {
+            const retrievedOffers : Array<DamOffer> = [];
+
+            for (let i = 0; i < offersUpdate.length; i++) {
+                const id = offersUpdate[i];
 
                 const offer: DamOffer = await agoricLayer.queryOnce<DamOffer>(Kind.Data, `published.futarchy.offers.${id}`);
 
-                console.log('OFFER LOADED', offer);
-
-                let bucket;
-
-                if (offer.type === 'ask') {
-                    bucket = asks;
-                } else {
-                    bucket = bids;
-                }
-
-                if (bucket == null) {
-                    throw new Error (`No state container associated with type ${offer.type}`);
-                }
-
-                const index = bucket.findIndex(a => a.id === offer.id);
-
-                if (index >= 0) {
-                    bucket.splice(index, 1);
-                }
-
+                setOffers(offers.filter(a => a.id != offer.id));
+                
                 if (offer.available) {
-                    if (offer.type === 'ask') {
-                        useAppStore.setState({ asks: [...bucket, offer]});
-                    } else {
-                        useAppStore.setState({ bids: [...bucket, offer]});
-                    }
+                    retrievedOffers.push(offer);
                 }
-              }
+
+            }
+
+            setOffers(retrievedOffers);
         }, true);
     }
 
@@ -243,14 +216,14 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                                 <OfferList
                                     type='Asks'
                                     address={wallet?.address}
-                                    list={getoffers('asks', 0)}
+                                    list={getoffers('ask', 0)}
                                 />
                             </div>
                             <div className='item-row'>
                                 <OfferList
                                     type='Bids'
                                     address={wallet?.address}
-                                    list={ bids?.filter(b => b.condition === 0) }
+                                    list={getoffers('bid', 0)}
                                 />
                             </div>
                         </div>
@@ -285,14 +258,14 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                                 <OfferList
                                     type='Asks'
                                     address={wallet?.address}
-                                    list={getoffers('asks', 1)}
+                                    list={getoffers('ask', 1)}
                                 />
                             </div>
                             <div className='item-row'>
                                 <OfferList
                                     type='Bids'
                                     address={wallet?.address}
-                                    list={ bids?.filter(b => b.condition === 1) }
+                                    list={getoffers('bid', 1)}
                                 />
                             </div>
                         </div>

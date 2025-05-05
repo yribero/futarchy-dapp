@@ -69,6 +69,7 @@ export default class AgoricLayer {
             onChangeOnly
         });
 
+        console.log('ADDED HANDLER TO ' + address, kind);
         this.watcher.watchLatest<Type>(
             [kind, address],
             data => {

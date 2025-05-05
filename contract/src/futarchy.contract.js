@@ -612,7 +612,7 @@ export const start = async (zcf, privateArgs) => {
       "SharesYes": "CashYes",
       "SharesNo": "CashNo",
       "CashYes": "SharesYes",
-      "CashNo": "SharesYes"
+      "CashNo": "SharesNo"
     }
 
     let price;

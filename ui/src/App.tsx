@@ -48,11 +48,11 @@ const setup = async () => {
 
     agoricLayer.startWatcher(
         Kind.Data,
-        'published.futarchy.approved',
-        (approvedReceived: { value: boolean | undefined }) => {
-            if (approvedReceived.value != null) {
+        'published.futarchy.outcome',
+        (approvedReceived: { result: boolean | undefined }) => {
+            if (approvedReceived.result != null) {
                 useAppStore.setState({
-                    approved: approvedReceived.value
+                    approved: approvedReceived.result
                 });
             }
         },
@@ -61,7 +61,7 @@ const setup = async () => {
     
     agoricLayer.startWatcher(
         Kind.Children,
-        'published.futarchy.contracts',
+        'published.futarchy.doneDeals',
         async (contracts: Array<[string, unknown]>) => {
             let { doneDeals } = useAppStore.getState();
     

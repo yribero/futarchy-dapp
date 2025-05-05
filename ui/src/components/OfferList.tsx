@@ -13,7 +13,7 @@ const OfferList = (({ list, type, address }: OfferListProps) => {
     return (
         <>
             <div className="trade" style={{ width: 150 }}>
-                <b>{type}</b>
+                <b>{type} ({list?.length})</b>
                 <ul className="barelist">
                     {list ? list.map((offer) => {
                         return <li key={ offer.id }>{(offer.price / UNIT6).toString()} {offer.address === address ? '*' : ''}</li>
