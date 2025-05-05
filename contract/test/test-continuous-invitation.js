@@ -1,13 +1,13 @@
 import { test as anyTest } from './prepare-test-env-ava.js';
 import { createRequire } from 'module';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/far';
 import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { makeNodeBundleCache } from '@endo/bundle-source/cache.js';
 import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
-import { AmountMath, makeIssuerKit } from '@agoric/ertp';
+import { AmountMath } from '@agoric/ertp';
 import { makeStableFaucet } from './mintStable.js';
 
-import { startContract } from './start-contract-for-test.js';
+import { createInstance } from './boiler-plate.js';
 
 const myRequire = createRequire(import.meta.url);
 const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
@@ -114,15 +114,13 @@ const makeOffer = async (t, zoe, instance, purse, payment) => {
 
 test('Check No Exception on First Offer', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 
   let ex; 
   try {
     const payment = await joinFutarchy(t, zoe, instance, await faucet(1000n * UNIT6));
-
-    console.log('MANAGED TO JOIN FUTARCHY');
 
     await makeOffer(t, zoe, instance, await faucet(1000n * UNIT6), payment);
   } catch (e) {

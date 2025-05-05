@@ -1,14 +1,14 @@
 export interface DamOffer {
     address: string;
-    amount: number;
-    amountAvailable: number;
-    id: number;
-    price: number;
-    resolved: boolean;
+    amount: bigint;
+    id: bigint;
+    price: bigint;
+    available: boolean;
     taker: boolean;
     timestamp: number;
     type: string;
     condition: number;
+    total: number;
 }
 
 export interface DoneDeal {

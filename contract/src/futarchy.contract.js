@@ -26,8 +26,8 @@ import { AmountShape } from '@agoric/ertp/src/typeGuards.js';
 import { atomicRearrange } from '@agoric/zoe/src/contractSupport/atomicTransfer.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import '@agoric/zoe/exported.js';
-import { makeMarshal } from '@endo/marshal';
-import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
+//import { makeMarshal } from '@endo/marshal';
+//import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
 
 /**
  * @import {Amount} from '@agoric/ertp/src/types.js';
@@ -118,18 +118,9 @@ export const start = async (zcf, privateArgs) => {
     brands
   } = zcf.getTerms();
 
-  let marshaller;
-  let timerService;
+  let marshaller = await E(privateArgs.board).getPublishingMarshaller();
 
-  const { isTest } = privateArgs;
-
-  if (isTest === true) {
-    marshaller = makeMarshal();
-    timerService = buildManualTimer(console.log, 0n);
-  } else {
-    marshaller = await E(privateArgs.board).getPublishingMarshaller();
-    timerService = await E(privateArgs.chainTimerService);
-  }
+  let timerService = privateArgs.timerService;
 
   let nextOfferId = 0n;
   let nextDoneDealId = 0n;
@@ -171,7 +162,7 @@ export const start = async (zcf, privateArgs) => {
   const publishedOffers = await E(privateArgs.storageNode).makeChildNode('offers');
   const publishedDoneDeals = await E(privateArgs.storageNode).makeChildNode('doneDeals');
   const publishedMedians = await E(privateArgs.storageNode).makeChildNode('medians');
-  const publishedApproved = await E(privateArgs.storageNode).makeChildNode('approved');
+  const publishedOutcome = await E(privateArgs.storageNode).makeChildNode('outcome');
 
   /**
    * a new ERTP mint for items, accessed thru the Zoe Contract Facet.
@@ -214,6 +205,22 @@ export const start = async (zcf, privateArgs) => {
 
   /** a seat for allocating proceeds of sales */
   const proceeds = zcf.makeEmptySeatKit().zcfSeat;
+
+  /**
+   * Call this method when the time is up
+   */
+  const onTimeIsUp = async () => {
+    offers.forEach(offer => { //ALL REMAINING OPEN SEATS MUST BE CLOSED
+      offer.seat?.exit();
+    });
+
+    let marshalledData = JSON.stringify(await E(marshaller).toCapData({
+      "result": medians[1] >= medians[0],
+      "explanation": medians[1] >= medians[0] ? "The proposal was approved" : "The proposal was rejected"
+    }));
+
+    await E(publishedOutcome).setValue(marshalledData);
+  }
 
   /**
    * 
@@ -535,7 +542,7 @@ export const start = async (zcf, privateArgs) => {
     return bids[0];
   }
 
-  const joinFutarchyHandler = joinerSeat => {
+  const joinFutarchyHandler = async joinerSeat => {
     const newCashNo = cashNoMint.mintGains({ CashNo: AmountMath.make(cashNoBrand, CASH * UNIT) });
     const newCashYes = cashYesMint.mintGains({ CashYes: AmountMath.make(cashYesBrand, CASH * UNIT) });
     const newSharesNo = sharesNoMint.mintGains({ SharesNo: AmountMath.make(sharesNoBrand, SHARES * UNIT) });
@@ -592,7 +599,7 @@ export const start = async (zcf, privateArgs) => {
     /**
      * @type {TimestampRecord}
      */
-    const ts = await timerService.getCurrentTimestamp();
+    const ts = await E(timerService).getCurrentTimestamp();
 
     const { want, give } = seat.getProposal();
 

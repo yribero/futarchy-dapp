@@ -1,10 +1,12 @@
 import { createRequire } from 'module';
-import { E } from '@endo/far';
+import { E, Far } from '@endo/far';
 import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { makeNodeBundleCache } from '@endo/bundle-source/cache.js';
 import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
 import { AmountMath } from '@agoric/ertp';
 import { makeMockChainStorageRoot } from '@agoric/internal/src/storage-test-utils.js';
+import { makeMarshal } from '@endo/marshal';
+import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
 
 import { makeStableFaucet } from './mintStable.js';
 
@@ -106,13 +108,22 @@ const createInstance = async (t) => {
     const joinFutarchyFee = AmountMath.make(feeBrand, 100n * UNIT6);
     const chainStorage = makeMockChainStorageRoot();
 
+    const board = Far("board", {
+        getPublishingMarshaller() {
+            return makeMarshal();
+        }
+    });
+
+    const timerService = buildManualTimer(console.log, 0n);
+
     const { instance } = await E(zoe).startInstance(
         installation,
         { Price: feeIssuer },
         { joinFutarchyFee },
         {
             storageNode: chainStorage.makeChildNode('futarchy'),
-            board: chainStorage.makeChildNode('boardAux'),
+            board,
+            timerService,
             isTest: true
         }
     );

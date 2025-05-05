@@ -64,7 +64,6 @@ export const startFutarchyContract = async permittedPowers => {
     brand: {
       consume: { IST: istBrandP },
       produce: {
-        Item: produceItemBrand,
         CashNo: produceCashNoBrand,
         CashYes: produceCashYesBrand,
         SharesNo: produceSharesNoBrand,
@@ -74,7 +73,6 @@ export const startFutarchyContract = async permittedPowers => {
     issuer: {
       consume: { IST: istIssuerP },
       produce: { 
-        Item: produceItemIssuer,
         CashNo: produceCashNoIssuer,
         CashYes: produceCashYesIssuer,
         SharesNo: produceSharesNoIssuer,
@@ -102,6 +100,9 @@ export const startFutarchyContract = async permittedPowers => {
   // agoricNames gets updated each time; the promise space only once XXXXXXX
   const installation = await futarchyInstallationP;
 
+  console.log('CHECKING THE BOARD', board);
+  console.log('CHECKING THE CHAIN TIMER', chainTimerService);
+
   const { instance } = await E(startUpgradable)({
     installation,
     issuerKeywordRecord: { Price: istIssuer },
@@ -110,7 +111,7 @@ export const startFutarchyContract = async permittedPowers => {
     privateArgs: {
       storageNode,
       board,
-      chainTimerService,
+      timerService: await chainTimerService,
     },
   });
   console.log('CoreEval script: started contract', instance);
@@ -122,15 +123,13 @@ export const startFutarchyContract = async permittedPowers => {
       CashNo: cnb,
       CashYes: cyb,
       SharesNo: snb,
-      SharesYes: syb,
-      Item: ib
+      SharesYes: syb
     },
     issuers: { 
       CashNo: cni,
       CashYes: cyi,
       SharesNo: sni,
-      SharesYes: syi,
-      Item: ii
+      SharesYes: syi
     },
   } = val;
 
@@ -141,31 +140,27 @@ export const startFutarchyContract = async permittedPowers => {
   produceInstance.reset();
   produceInstance.resolve(instance);
 
-  produceItemBrand.reset();
   produceCashNoBrand.reset();
   produceCashYesBrand.reset();
   produceSharesNoBrand.reset();
   produceSharesYesBrand.reset();
 
-  produceItemIssuer.reset();
   produceCashNoIssuer.reset();
   produceCashYesIssuer.reset();
   produceSharesNoIssuer.reset();
   produceSharesYesIssuer.reset();
 
-  produceItemBrand.resolve(await ib);
   produceCashNoBrand.resolve(await cnb);
   produceCashYesBrand.resolve(await cyb);
   produceSharesNoBrand.resolve(await snb);
   produceSharesYesBrand.resolve(await syb);
 
-  produceItemIssuer.resolve(await ii);
   produceCashNoIssuer.resolve(await cni);
   produceCashYesIssuer.resolve(await cyi);
   produceSharesNoIssuer.resolve(await sni);
   produceSharesYesIssuer.resolve(await syi);
 
-  for (let brand of [ib, cnb, cyb, snb, syb]) {
+  for (let brand of [cnb, cyb, snb, syb]) {
     try {
       await publishBrandInfo(chainStorage, board, brand);
 
@@ -190,8 +185,8 @@ const futarchyManifest = {
       chainTimerService: true,
     },
     installation: { consume: { futarchy: true } },
-    issuer: { consume: { IST: true }, produce: { Item: true, CashNo: true, CashYes: true, SharesNo: true, SharesYes: true } },
-    brand: { consume: { IST: true }, produce: { Item: true, CashNo: true, CashYes: true, SharesNo: true, SharesYes: true } },
+    issuer: { consume: { IST: true }, produce: { CashNo: true, CashYes: true, SharesNo: true, SharesYes: true } },
+    brand: { consume: { IST: true }, produce: { CashNo: true, CashYes: true, SharesNo: true, SharesYes: true } },
     instance: { produce: { futarchy: true } },
   },
 };

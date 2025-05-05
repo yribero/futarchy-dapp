@@ -1,15 +1,13 @@
 import { test as anyTest } from '../prepare-test-env-ava.js';
 import { createRequire } from 'module';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/far';
 import '@agoric/zoe/src/zoeService/types-ambient.js';
 import { makeNodeBundleCache } from '@endo/bundle-source/cache.js';
 import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
-import { AmountMath, makeIssuerKit } from '@agoric/ertp';
-import { makeMockChainStorageRoot } from '@agoric/internal/src/storage-test-utils.js';
+import { AmountMath } from '@agoric/ertp';
 
 import { makeStableFaucet } from '../mintStable.js';
-import { startContract } from '../start-contract-for-test.js';
-import { deepEqual } from 'assert';
+import { createInstance } from '../boiler-plate.js';
 
 const myRequire = createRequire(import.meta.url);
 const contractPath = myRequire.resolve(`../../src/futarchy.contract.js`);
@@ -33,6 +31,7 @@ const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
  * @import {ExecutionContext} from 'ava';
  * @import {Instance} from '@agoric/zoe/src/zoeService/utils.js';
  * @import {Purse} from '@agoric/ertp/src/types.js';
+ * @import {ZoeService} from '@agoric/zoe';
  */
 
 const UNIT6 = 1_000_000n;
@@ -111,24 +110,9 @@ const proposalToPurses = async (proposal, issuers, userSeat) => {
 }
 
 test('History is written', async t => {
-    const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
+    const { zoe, bundleCache, feeMintAccess } = t.context;
 
-    const installation = E(zoe).install(bundle);
-    const feeIssuer = await E(zoe).getFeeIssuer();
-    const feeBrand = await E(feeIssuer).getBrand();
-    const joinFutarchyFee = AmountMath.make(feeBrand, 100n * UNIT6);
-    const chainStorage = makeMockChainStorageRoot();
-
-    const { instance } = await E(zoe).startInstance(
-        installation,
-        { Price: feeIssuer },
-        { joinFutarchyFee },
-        {
-            storageNode: chainStorage.makeChildNode('futarchy'),
-            board: chainStorage.makeChildNode('boardAux'),
-            isTest: true
-        }
-    );
+    const { instance, chainStorage } = await createInstance(t);
 
     const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 

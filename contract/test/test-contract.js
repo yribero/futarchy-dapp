@@ -6,7 +6,7 @@ import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import { makeStableFaucet } from './mintStable.js';
 
-import { startContract } from './start-contract-for-test.js';
+import { createInstance } from './boiler-plate.js';
 
 const myRequire = createRequire(import.meta.url);
 const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
@@ -112,20 +112,13 @@ const alice = async (t, zoe, instance, purse, choices = ['map', 'scroll']) => {
 };
 
 test('Trade in IST rather than play money', async t => {
-  console.log('AAAAAAA');
+  const { zoe, bundleCache, feeMintAccess } = t.context;
 
-  const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-
-  console.log('BBBBBBBB');
-  const { instance } = await startContract({ zoe, bundle });
-
-  console.log('Contract started')
+  const { instance } = await createInstance(t);
 
   const terms2 = await E(zoe).getTerms(instance);
 
-  console.log("TEERMS");
-  console.log(terms2);
-
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
+
   await alice(t, zoe, instance, await faucet(1000n * UNIT6));
 });

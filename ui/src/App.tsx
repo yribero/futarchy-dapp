@@ -7,13 +7,14 @@ import AgoricLayer from './helpers/AgoricLayer';
 import { Join } from './components/Join';
 import { Logos } from './components/Logos';
 import { Inventory } from './components/Inventory';
-import { DamOffer, DoneDeal } from './helpers/FutarchyTypes';
+import { DoneDeal } from './helpers/FutarchyTypes';
+import { Futarchy } from './components/Futarchy';
+import { ConnectWallet } from './components/ConnectWallet';
 
 const { fromEntries } = Object;
 
 let useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>(() => ({
-    doneDeals: [],
-    medians: [0, 0]
+    doneDeals: [], medians: [0n, 0n], bids: [], asks: []
 }));
 
 let agoricLayer : AgoricLayer;
@@ -57,17 +58,6 @@ const setup = async () => {
         },
         true
     );
-
-    agoricLayer.startWatcher(
-        Kind.Data,
-        'published.futarchy.medians',
-        (medians: Array<number>) => {
-            useAppStore.setState({
-                medians: medians
-            })
-        },
-        true
-    );
     
     agoricLayer.startWatcher(
         Kind.Children,
@@ -93,56 +83,6 @@ const setup = async () => {
         },
         true
     );
-
-    agoricLayer.startWatcher(
-        Kind.Children,
-        'published.futarchy.asks',
-        async (allAsks: Array<[string, unknown]>) => {
-            let retrievedAsks : Array<DamOffer> = [];
-        
-            let result : DamOffer;
-        
-            for (let i = 0; i < allAsks.length; i++) {
-                const id = allAsks[i];
-                result = await agoricLayer.queryOnce<DamOffer>(Kind.Data, `published.futarchy.asks.${id}`);
-                if (!result.resolved) {
-                retrievedAsks.push(result);
-                }
-            }
-        
-            retrievedAsks.sort((o1, o2) => o2.price - o1.price);
-        
-            useAppStore.setState({
-                asks: retrievedAsks
-            })
-        },
-        true
-    );
-    
-    agoricLayer.startWatcher(
-        Kind.Children,
-        'published.futarchy.bids',
-        async (allBids: Array<[string, unknown]>) => {
-            let retrievedBids : Array<DamOffer> = [];
-      
-            let result : DamOffer;
-      
-            for (let i = 0; i < allBids.length; i++) {
-              const id = allBids[i];
-              result = await agoricLayer.queryOnce<DamOffer>(Kind.Data, `published.futarchy.bids.${id}`);
-              if (!result.resolved) {
-                retrievedBids.push(result);
-              }
-            }
-      
-            retrievedBids.sort((o1, o2) => o2.price - o1.price);
-      
-            useAppStore.setState({
-              bids: retrievedBids
-            })
-        },
-        true
-    );
 }
 
 function App() {
@@ -153,36 +93,41 @@ function App() {
     const state = useAppStore();
     const purses = state.purses?.filter(p => ['IST', 'CashYes', 'CashNo', 'SharesYes', 'SharesNo'].includes(p.brandPetname));
 
+    if (state.wallet == null) {
+        return (
+            <>
+                <h1>Futarchy Dapp</h1>
+
+                <Logos />
+
+                <ConnectWallet useAppStore={useAppStore} agoricLayer={agoricLayer}/>
+            </>
+        );
+    }
+
     return (
         <>
             <h1>Futarchy Dapp</h1>
 
             <Logos />
             
-            {state.wallet && state.approved == null && state.joined != true &&
+            {state.approved == null && state.joined != true &&
                 <div>
                     <Join useAppStore={useAppStore} agoricLayer={agoricLayer}/>
                 </div>
             }
-            {state.wallet && state.approved == null && state.joined == true &&
-                <h1>Contract Active: TODO</h1>
+            {state.approved == null && state.joined == true &&
+                <Futarchy useAppStore={useAppStore} agoricLayer={agoricLayer} /> 
             }
-            {state.wallet && state.approved != null &&
+            {state.approved != null &&
                 <h1>Ended: TODO</h1>
             }
             
-            {state.wallet ? (
-                <Inventory
-                    address={state.wallet.address}
-                    purses={purses ? purses : []}
-                />
-            ) : (
-                <div>
-                    <button onClick={() => {
-                        agoricLayer.connectWallet(useAppStore);
-                    }}>Connect Your Wallet</button>
-                </div>
-            )}
+            <Inventory
+                address={state.wallet.address}
+                purses={purses ? purses : []}
+            />
+
 
         </>
     );

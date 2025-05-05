@@ -8,6 +8,7 @@ import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import { makeStableFaucet } from './mintStable.js';
 
 import { startContract } from './start-contract-for-test.js';
+import { createInstance } from './boiler-plate.js';
 
 const myRequire = createRequire(import.meta.url);
 const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
@@ -117,7 +118,7 @@ const proposalToPurses = async (proposal, issuers, userSeat) => {
 
 test('Valid Bid', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 
@@ -145,7 +146,7 @@ test('Valid Bid', async t => {
 
 test('Valid Ask', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 
@@ -173,7 +174,7 @@ test('Valid Ask', async t => {
 
 test('Check Invalid Offer with multiple gives', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
   const { brands, issuers } = await E(zoe).getTerms(instance);
@@ -206,7 +207,7 @@ test('Check Invalid Offer with multiple gives', async t => {
 
 test('Check Invalid Offer with multiple wants', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 
@@ -241,7 +242,7 @@ test('Check Invalid Offer with multiple wants', async t => {
 
 test('Check Invalid Offer 0 cash', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 
@@ -271,7 +272,7 @@ test('Check Invalid Offer 0 cash', async t => {
 
 test('Check Invalid Offer 0 shares', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 
@@ -301,7 +302,7 @@ test('Check Invalid Offer 0 shares', async t => {
 
 test('Check Invalid: mismatch', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 
@@ -331,7 +332,7 @@ test('Check Invalid: mismatch', async t => {
 
 test('Check Invalid: double bid', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 
@@ -367,7 +368,7 @@ test('Check Invalid: double bid', async t => {
 
 test('Check Invalid: bid and ask', async t => {
   const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
-  const { instance } = await startContract({ zoe, bundle });
+  const { instance, chainStorage } = await createInstance(t);
 
   const { faucet } = makeStableFaucet({ bundleCache, feeMintAccess, zoe });
 

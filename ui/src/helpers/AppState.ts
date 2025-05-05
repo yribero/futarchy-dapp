@@ -11,10 +11,10 @@ export default interface AppState {
   brands?: Record<string, unknown>;
   purses?: Array<Purse>;
   lastId?: string;
+  medians: bigint[];
   asks?: Array<DamOffer>;
   bids?: Array<DamOffer>;
   doneDeals: Array<DoneDeal>;
-  medians: Array<number>;
   approved?: boolean;
   joined?: boolean;
   error?: string;
