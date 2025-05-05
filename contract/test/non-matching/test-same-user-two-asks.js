@@ -46,11 +46,11 @@ test('The same user makes two asks', async t => {
             condition: 1,
             id: 0n,
             price: 100000000n,
-            resolved: false,
             taker: false,
             timestamp: 0n,
             type: 'ask',
-            secret: undefined
+            secret: undefined,
+            available: undefined
         }, {
             address: 'a',
             amount: 1000000n,
@@ -58,11 +58,11 @@ test('The same user makes two asks', async t => {
             condition: 1,
             id: 1n,
             price: 101000000n,
-            resolved: false,
             taker: false,
             timestamp: 0n,
             type: 'ask',
-            secret: undefined
+            secret: undefined,
+            available: undefined
         }
     ];
 
@@ -138,3 +138,9 @@ test('The same user makes two asks', async t => {
 
     t.true(ex == null);
 });
+
+/**
+ * TODO: more tests
+ *     make asks until you run out of shares
+ *     make bids until you run out of cash
+ */

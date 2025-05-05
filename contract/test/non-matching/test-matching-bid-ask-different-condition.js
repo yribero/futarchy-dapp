@@ -22,7 +22,7 @@ const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
 
 test.before(async t => (t.context = await makeTestContext(t)));
 
-test('The same user makes matching ask and bid, not resolved', async t => {
+test('Different users make ask and bid with matching prices and amounts, but on different conditions', async t => {
     const { zoe } = t.context;
 
     const { instance, chainStorage }  = await createInstance(t);
@@ -39,7 +39,7 @@ test('The same user makes matching ask and bid, not resolved', async t => {
             condition: 1,
             id: 0n,
             price: 100000000n,
-            resolved: false,
+            available: undefined,
             taker: false,
             timestamp: 0n,
             type: 'ask',
@@ -51,7 +51,7 @@ test('The same user makes matching ask and bid, not resolved', async t => {
             condition: 0,
             id: 1n,
             price: 100000000n,
-            resolved: false,
+            available: undefined,
             taker: false,
             timestamp: 0n,
             type: 'bid',

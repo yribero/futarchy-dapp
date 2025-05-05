@@ -42,6 +42,11 @@ const SHARES = 100n;
 const CASH = 10_000n;
 
 /**
+ * @typedef {{ 
+ *     timerBrand: any;
+ *     absValue: bigint;
+ * }} TimestampRecord
+ * 
  * @typedef {{
  *    type: "child" | "update";
  *    parent?: any;
@@ -260,6 +265,11 @@ export const start = async (zcf, privateArgs) => {
    * @returns {PublishingPromise}
    */
   const updateMedians = (doneDeal) => {
+    assert(
+      doneDeals[doneDeal.condition].length <= 7,
+      `The maximum length of doneDeals.length[${doneDeal.condition}] must be 7. It was ${doneDeals[doneDeal.condition].length}` 
+    );
+
     doneDeals[doneDeal.condition].push(doneDeal);
 
     if (doneDeals[doneDeal.condition].length > 7) {
@@ -272,11 +282,9 @@ export const start = async (zcf, privateArgs) => {
       medians[doneDeal.condition] = 0n;
     }
   
-    let lastSeven = values.slice(Math.max(values.length - 7, 0));
-
     // Sorting values, preventing original array
     // from being mutated.
-    lastSeven = [...lastSeven].sort((a, b) => {
+    let lastSeven = [...values].sort((a, b) => {
       if (b > a) {
         return 1;
       } else if (b < a) {
@@ -303,6 +311,7 @@ export const start = async (zcf, privateArgs) => {
   /**
    * 
    * @param {Offer} offer
+   * @param {TimestampRecord} ts
    * 
    * @returns {{
    *  resolved: boolean,
@@ -361,6 +370,10 @@ export const start = async (zcf, privateArgs) => {
       offer.available = false;
       best.available = false;
 
+      //Remove best offer from the offer list
+      const index = offers.findIndex(o => o.id === best.id);
+      offers.splice(index, 1);
+
       /**
        * @type {DoneDeal}
        */
@@ -372,7 +385,7 @@ export const start = async (zcf, privateArgs) => {
         amount: best.amount,
         price: best.price,
         total: best.total,
-        timestamp: ts
+        timestamp: ts.absValue
       };
 
       publications.push(recordInPublishedOffer(offer));
@@ -432,7 +445,8 @@ export const start = async (zcf, privateArgs) => {
   const recordInHistory = (offer) => {
     const offerToBeStored = { ...offer };
 
-    offerToBeStored.seat = undefined;
+    delete offerToBeStored.available;
+    delete offerToBeStored.seat;
     delete offerToBeStored.secret;
 
     return {
@@ -452,7 +466,7 @@ export const start = async (zcf, privateArgs) => {
   const recordInPublishedOffer = (offer) => {
     const offerToBeStored = { ...offer };
 
-    offerToBeStored.seat = undefined;
+    delete offerToBeStored.seat;
     delete offerToBeStored.secret;
 
     return {
@@ -575,13 +589,12 @@ export const start = async (zcf, privateArgs) => {
    * @param {import ("@agoric/zoe").ZCFSeat} seat
    */
   const makeOfferHandler = async (seat, offerArgs) => {
+    /**
+     * @type {TimestampRecord}
+     */
     const ts = await timerService.getCurrentTimestamp();
 
-    console.log('OFFER ARGS', offerArgs);
-
     const { want, give } = seat.getProposal();
-
-    console.log('PROPOSAL', { want, give });
 
     /**
      * @type {PublishingPromise[]}
@@ -637,6 +650,9 @@ export const start = async (zcf, privateArgs) => {
       }
     }
 
+    /**
+     * @type {Offer}
+     */
     const offer = {
       id: getNextOfferId(),
       price: price,
@@ -645,14 +661,13 @@ export const start = async (zcf, privateArgs) => {
       type: type,
       address: offerArgs?.address,
       secret: offerArgs?.secret,
-      resolved: false,
+      available: true,
       timestamp: ts.absValue,
       taker: offerArgs?.taker,
       condition: condition,
       seat
     };
 
-    console.log('OFFER', offer);
     // WRITE IN HISTORY
 
     publications.push(recordInHistory(offer));
@@ -671,48 +686,7 @@ export const start = async (zcf, privateArgs) => {
 
     await publishAll(publications);
 
-    // SECOND INVITATION FOR CANCELING
-
-    /**
-     * @param {import ("@agoric/zoe").ZCFSeat} seat
-     */
-    const oa = async (seat, offerArgs) => {
-      console.log('OFFER ARGS', offerArgs);
-
-      /*const { offerData } = offerArgs;
-
-      if (offerData.secret !== offerSecret) {
-        throw new Error('Certificate ID mismatch');
-      }*/
-
-      seat.exit();
-      return secondInviteObj;
-    }
-
-    //seat.exit(); Only if the offer is resolved
-
-    const secondInviteObj = harden({
-      invitationMakers: Far('second invitation maker', {
-        makeSecondInvitation: () =>
-          zcf.makeInvitation(
-            /*async (seat, offerArgs) => {
-              const { offerData } = offerArgs;
-
-              if (offerData.secret !== offerSecret) {
-                throw new Error('Certificate ID mismatch');
-              }
-
-              await E(edCertNode).setValue(JSON.stringify(certificateData));
-              seat.exit();
-              return secondInviteObj;
-            }*/oa,
-
-            'SecondInvite',
-          ),
-      }),
-    });
-
-    return secondInviteObj;
+    return resolveResult.resolved ? "Offer matched" : "Offer added";
   }
 
   const cancelOffer = async (seat, offerArgs) => {
@@ -725,8 +699,6 @@ export const start = async (zcf, privateArgs) => {
   }
 
   const makeOffer = () => {
-    console.log('Making an offer');
-
     return zcf.makeInvitation(
       makeOfferHandler,
       'publish offer data',

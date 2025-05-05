@@ -41,6 +41,10 @@ test('Different users make matching ask and bid', async t => {
      * @type{UserSeat | undefined}
      */
     let bSeat;
+    /**
+     * @type{UserSeat | undefined}
+     */
+    let cSeat;
 
     const expectedResponses = [
         {
@@ -53,6 +57,17 @@ test('Different users make matching ask and bid', async t => {
             taker: false,
             timestamp: 0n,
             type: 'ask',
+            secret: undefined
+        }, {
+            address: 'b',
+            amount: 1000000n,
+            total: 100000000n,
+            condition: 1,
+            id: 1n,
+            price: 100000000n,
+            taker: false,
+            timestamp: 0n,
+            type: 'bid',
             secret: undefined
         }, {
             address: 'b',
@@ -103,7 +118,22 @@ test('Different users make matching ask and bid', async t => {
             seatHook: async (seat) => {
                 bSeat = seat;
             }
-        }
+        },
+        {
+            proposal: {
+                give: { CashYes: AmountMath.make(brands.CashYes, BigInt(100n * UNIT6)) },
+                want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT6)) }
+            },
+            args: {
+                address: "b",
+                secret: "b",
+                taker: false
+            },
+            user: "b",
+            seatHook: async (seat) => {
+                cSeat = seat;
+            }
+        },
     ];
 
     try {
@@ -151,9 +181,10 @@ test('Different users make matching ask and bid', async t => {
 
     t.true(ex == null);
 
-    //Verify all seats have not exited
+    //Verify all seats exit status
     t.true(await E(aSeat)?.hasExited());
     t.true(await E(bSeat)?.hasExited());
+    t.false(await E(cSeat)?.hasExited()); //Proves the repeated bid was not rematched against the original ask
 
     //Verify all parties received what was stated in the offer
     const offer = expectedResponses[0];

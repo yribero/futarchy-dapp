@@ -1,4 +1,4 @@
-import { test as anyTest } from './prepare-test-env-ava.js';
+import { test as anyTest } from '../prepare-test-env-ava.js';
 import { createRequire } from 'module';
 import { E, Far } from '@endo/far';
 import '@agoric/zoe/src/zoeService/types-ambient.js';
@@ -7,17 +7,18 @@ import { makeZoeKitForTest } from '@agoric/zoe/tools/setup-zoe.js';
 import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 import { makeMockChainStorageRoot } from '@agoric/internal/src/storage-test-utils.js';
 
-import { makeStableFaucet } from './mintStable.js';
-import { startContract } from './start-contract-for-test.js';
+import { makeStableFaucet } from '../mintStable.js';
+import { startContract } from '../start-contract-for-test.js';
 import { deepEqual } from 'assert';
 
 const myRequire = createRequire(import.meta.url);
-const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
+const contractPath = myRequire.resolve(`../../src/futarchy.contract.js`);
 
-/** @typedef {typeof import('../src/futarchy.contract.js').start} AssetContractFn */
+/** @typedef {typeof import('../../src/futarchy.contract.js').start} AssetContractFn */
 /** @typedef {Awaited<ReturnType<import('@endo/bundle-source/cache.js').makeNodeBundleCache>>} BundleCache */
 
 /**
+ * 
  * @typedef {{
 *   zoe: ZoeService,
 *   bundle: any,
@@ -147,7 +148,7 @@ test('History is written', async t => {
         condition: 1,
         id: 0n,
         price: 100000000n,
-        resolved: false,
+        available: undefined,
         taker: undefined,
         timestamp: 0n,
         type: 'ask'
