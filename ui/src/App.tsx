@@ -10,17 +10,36 @@ import { Inventory } from './components/Inventory';
 import { DoneDeal } from './helpers/FutarchyTypes';
 import { Futarchy } from './components/Futarchy';
 import { ConnectWallet } from './components/ConnectWallet';
+import { Redeem } from './components/Redeem';
 
 const { fromEntries } = Object;
 
 let useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>(() => ({
-    doneDeals: [], medians: [0n, 0n], bids: [], asks: []
+    doneDeals: [], medians: [0n, 0n], bids: [], asks: [], approved: undefined
 }));
 
-let agoricLayer : AgoricLayer;
+let agoricLayer : AgoricLayer = new AgoricLayer(new URL(window.location.href));
+
+const updateJoined = () =>  {
+    const { purses } = useAppStore.getState();
+
+    if (purses == null) {
+        return
+    }
+
+    const cashYesPurse : Purse| undefined = purses.find(p => p.brandPetname === 'CashYes');
+    const cashNoPurse = purses.find(p => p.brandPetname === 'CashNo');
+
+    console.log("CASHYES purse AMOUNT", cashYesPurse?.currentAmount)
+    console.log("CASHNO purse AMOUNT", cashNoPurse?.currentAmount)
+
+    useAppStore.setState({
+        joined: cashYesPurse?.currentAmount.value != null || cashNoPurse?.currentAmount.value != null,
+    }, false);
+}
 
 const setup = async () => {
-    agoricLayer = new AgoricLayer(new URL(window.location.href));
+    updateJoined();
 
     agoricLayer.startWatcher(
         Kind.Data,
@@ -28,9 +47,7 @@ const setup = async () => {
         (instances: Array<[string, unknown]>) => {
             const futarchyContracts = instances.find(([name]) => name === 'futarchy');
 
-            useAppStore.setState({
-                contractInstance: futarchyContracts!.at(1),
-            });
+            useAppStore.setState({ contractInstance: futarchyContracts!.at(1) }, false);
         },
         true
     );
@@ -39,9 +56,7 @@ const setup = async () => {
         Kind.Data,
         'published.agoricNames.brand',
         (brands: Array<[string, unknown]>) => {
-            useAppStore.setState({
-                brands: fromEntries(brands),
-            });
+            useAppStore.setState({ brands: fromEntries(brands) }, false);
         },
         true
     );
@@ -51,9 +66,9 @@ const setup = async () => {
         'published.futarchy.outcome',
         (approvedReceived: { result: boolean | undefined }) => {
             if (approvedReceived.result != null) {
-                useAppStore.setState({
-                    approved: approvedReceived.result
-                });
+                console.log('OUTCOME', approvedReceived)
+                useAppStore.setState({ approved: approvedReceived.result }, false);
+                console.log ('SEE IF IT IS APPROVED', useAppStore.getState().approved);
             }
         },
         true
@@ -90,10 +105,16 @@ function App() {
         setup();
     }, []);
 
-    const state = useAppStore();
-    const purses = state.purses?.filter(p => ['IST', 'CashYes', 'CashNo', 'SharesYes', 'SharesNo'].includes(p.brandPetname));
+    const { wallet, purses, joined, approved } = useAppStore(({ wallet, purses, joined, approved }) => ({
+        wallet,
+        purses,
+        joined,
+        approved
+    }));
 
-    if (state.wallet == null) {
+    const pursesOfInterest = purses?.filter(p => ['IST', 'CashYes', 'CashNo', 'SharesYes', 'SharesNo', 'Price'].includes(p.brandPetname));
+
+    if (wallet == null) {
         return (
             <>
                 <h1>Futarchy Dapp</h1>
@@ -110,22 +131,24 @@ function App() {
             <h1>Futarchy Dapp</h1>
 
             <Logos />
-            
-            {state.approved == null && state.joined != true &&
+
+            {approved == null && joined != true &&
                 <div>
                     <Join useAppStore={useAppStore} agoricLayer={agoricLayer}/>
                 </div>
             }
-            {state.approved == null && state.joined == true &&
+
+            {approved == null && joined == true &&
                 <Futarchy useAppStore={useAppStore} agoricLayer={agoricLayer} /> 
             }
-            {state.approved != null &&
-                <h1>Ended: TODO</h1>
+
+            {approved != null &&
+                <Redeem useAppStore={useAppStore} agoricLayer={agoricLayer} approved={approved}/>
             }
-            
+
             <Inventory
-                address={state.wallet.address}
-                purses={purses ? purses : []}
+                address={wallet.address}
+                purses={pursesOfInterest ? pursesOfInterest : []}
             />
 
 

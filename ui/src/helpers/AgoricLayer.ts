@@ -99,14 +99,16 @@ export default class AgoricLayer {
     async connectWallet(useAppStore: UseBoundStore<StoreApi<AppState>>) {
         await suggestChain('https://local.agoric.net/network-config');
         const wallet = await makeAgoricWalletConnection(this.watcher, this.ENDPOINTS.RPC);
-        useAppStore.setState({ wallet });
+        useAppStore.setState({ wallet }, false);
+
+        console.log('WALLET', useAppStore.getState().wallet)
         const { pursesNotifier } = wallet;
         for await (const purses of subscribeLatest<Purse[]>(pursesNotifier)) {
             console.log('got purses', purses);
-            useAppStore.setState({ purses });
+            useAppStore.setState({ purses }, false);
 
             if (useAppStore.getState().purses?.find(p => p.brandPetname === 'CashYes') != null) {
-                useAppStore.setState({joined: true});
+                useAppStore.setState({joined: true}, false);
             }
 
             const { contractInstance } = useAppStore.getState();
@@ -126,7 +128,7 @@ export default class AgoricLayer {
                     }
 
                     console.log(`Was there an error? ${status?.status?.error}`)
-                    useAppStore.setState({ error: status?.status?.error });
+                    useAppStore.setState({ error: status?.status?.error }, false);
 
                     const result: ContractWallet = await this.watcher.queryOnce([Kind.Data, `published.futarchy.wallets.${wallet.address}`]);
 

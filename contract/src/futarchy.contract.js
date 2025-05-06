@@ -5,14 +5,6 @@
  * so you may want to skip ahead and come back to some details.
  * @see {start} for the main contract entrypoint
  *
- * As is typical in Zoe contracts, the flow is:
- *   1. contract does internal setup and returns public / creator facets.
- *   2. client uses a public facet method -- {@link makeTradeInvitation} in this case --
- *      to make an invitation.
- *   3. client makes an offer using the invitation, along with
- *      a proposal (with give and want) and payments. Zoe escrows the payments, and then
- *   4. Zoe invokes the offer handler specified in step 2 -- here {@link tradeHandler}.
- *
  * @see {@link https://docs.agoric.com/guides/zoe/|Zoe Overview} for a walk-thru of this contract
  * @see {@link https://docs.agoric.com/guides/js-programming/hardened-js.html|Hardened JavaScript}
  * for background on `harden` and `assert`.
@@ -20,20 +12,16 @@
 // @ts-check
 // @jessie-check
 import { E, Far } from '@endo/far';
-import { M, getCopyBagEntries } from '@endo/patterns';
-import { AssetKind, assertValueGetHelpers } from '@agoric/ertp/src/amountMath.js';
+import { M } from '@endo/patterns';
 import { AmountShape } from '@agoric/ertp/src/typeGuards.js';
 import { atomicRearrange } from '@agoric/zoe/src/contractSupport/atomicTransfer.js';
-import { AmountMath, makeIssuerKit } from '@agoric/ertp';
-import '@agoric/zoe/exported.js';
-//import { makeMarshal } from '@endo/marshal';
-//import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
+import { AmountMath } from '@agoric/ertp';
 
 /**
+ * @import {TimerService} from '@agoric/time'
  * @import {Amount} from '@agoric/ertp/src/types.js';
  * @import {AmountKeywordRecord, ZCFSeat} from '@agoric/zoe';
  */
-const { Fail, quote: q } = assert;
 
 const UNIT = 1_000_000n;
 const CENT = UNIT / 100n;
@@ -120,6 +108,9 @@ export const start = async (zcf, privateArgs) => {
 
   let marshaller = await E(privateArgs.board).getPublishingMarshaller();
 
+  /**
+   * @type {TimerService}
+   */
   let timerService = privateArgs.timerService;
 
   let nextOfferId = 0n;
@@ -157,11 +148,6 @@ export const start = async (zcf, privateArgs) => {
    * @type {bigint []}
    */
   const medians = [0n, 0n];
-
-  /**
-   * @type {number}
-   */
-  let players = 0;
 
   /**
    * @type {boolean}
@@ -234,10 +220,8 @@ export const start = async (zcf, privateArgs) => {
    */
   const proceeds = zcf.makeEmptySeatKit().zcfSeat;
 
-  console.log('DURATION' ,duration);
-
   new Promise(async () => { //Setting up a timer asynchronously
-    await timerService.delay(duration);
+    await E(timerService).delay(duration);
 
     over = true;
 
@@ -601,8 +585,6 @@ export const start = async (zcf, privateArgs) => {
     newSharesNo.exit();
     newSharesYes.exit();
 
-    players ++;
-
     return 'You joined futarchy';
   }
 
@@ -790,6 +772,9 @@ export const start = async (zcf, privateArgs) => {
     console.log('SHARE VALUE', shareValue);
     console.log('CASH VALUE', cashValue);
 
+    /**
+     * @type {[a: ZCFSeat, b: ZCFSeat, c: AmountKeywordRecord][]}
+     */
     const exchanges = [];
 
     Object.keys(seat.getProposal().give).forEach(assetName => {
@@ -811,28 +796,37 @@ export const start = async (zcf, privateArgs) => {
 
       istValue += Number(seat.getProposal().give[assetName].value) * multiplier;
 
-      exchanges.push([
+      /**
+       * @type {[a: ZCFSeat, b: ZCFSeat, c: AmountKeywordRecord]}
+       */
+      const exchange = [
         seat,
         proceeds,
         getAmount(assetName, seat.getProposal().give[assetName].value)
-      ]);
+      ];
+
+      console.log('EXCHANGE', exchange);
+
+      exchanges.push(exchange);
+
+      console.log('EXCHANGES', exchanges);
     });
 
     const totalIstValue = BigInt(istValue);
     
     console.log('IST REQUEST', totalIstValue / UNIT);
 
-    console.log('joinFutarchyFee', joinFutarchyFee.brand.getAllegedName());
-
     console.log(proceeds);
     console.log('CURRENT ALLOCATION', proceeds.getCurrentAllocation());
 
+    //exchanges.push([proceeds, seat, { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) }]);
+    exchanges.push([proceeds, seat, AmountMath.make(joinFutarchyFee.brand, totalIstValue)]);
+
+    console.log('EXCHANGES', exchanges);
+
     atomicRearrange(
       zcf,
-      harden([
-        ...exchanges,
-        [proceeds, seat, { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) }]
-      ]),
+      harden(exchanges)
     );
 
     seat.exit();

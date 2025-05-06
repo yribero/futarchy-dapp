@@ -13,7 +13,7 @@
     "start": "./scripts/wait-for-chain.sh && yarn docker:make clean start-contract",
     "build": "agoric run scripts/build-contract-deployer.js",
     "test": "ava --verbose",
-    "test:own": "sudo chown -R yribero:yribero . && ava --verbose",
+    "test:clean": "./clean.sh && ava --verbose",
     "test:watch": "ava --verbose -w",
     "lint": "tsc && eslint '**/*.js'",
     "lint:fix": "eslint --fix '**/*.js'",

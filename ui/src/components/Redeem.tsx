@@ -3,36 +3,55 @@ import AgoricLayer from '../helpers/AgoricLayer';
 import AppState from '../helpers/AppState';
 import { ContractInvitationSpec } from '@agoric/smart-wallet/src/invitations';
 
-type JoinProps = {
-    useAppStore: UseBoundStore<StoreApi<AppState>>,
-    agoricLayer: AgoricLayer
+type RedeemProps = {
+    useAppStore: UseBoundStore<StoreApi<AppState>>;
+    agoricLayer: AgoricLayer;
+    approved: boolean | undefined
 }
 
-const Join = (({ useAppStore, agoricLayer }: JoinProps) => {
+const Redeem = (({ useAppStore, approved, agoricLayer }: RedeemProps) => {
 
-    const join = async () => {
-        const { wallet, contractInstance, brands } = useAppStore.getState();
+    const redeem = async () => {
+        const { wallet, contractInstance, brands, purses } = useAppStore.getState();
+
+        const pursesOfInterest = purses?.filter(p => ['IST', 'CashYes', 'CashNo', 'SharesYes', 'SharesNo'].includes(p.brandPetname));
+
+        const getPurse = (asset: string) : Purse | undefined => {
+            return purses?.find(p => p.brandPetname === asset)
+        }
 
         if (wallet == null) {
             console.error('Wallet not available');
 
-            await agoricLayer.connectWallet(useAppStore);
+            await agoricLayer?.connectWallet(useAppStore);
         }
 
         const contractSpec: ContractInvitationSpec = {
             source: 'contract',
             instance: contractInstance,
-            publicInvitationMaker: 'joinFutarchy',
+            publicInvitationMaker: 'redeem',
         };
 
-        const give = { Price: { brand: brands?.IST, value: 100n * 1_000_000n } };
+        let give;
         const want = {};
+
+        if (approved) {
+            give = {
+                CashYes: getPurse('CashYes')?.currentAmount,
+                SharesYes: getPurse('SharesYes')?.currentAmount
+            }
+        } else {
+            give = {
+                CashNo: getPurse('CashNo')?.currentAmount ,
+                SharesNo: getPurse('SharesNo')?.currentAmount
+            }
+        }
 
         console.log('GIVE', give);
         wallet?.makeOffer(
             contractSpec,
             { give, want },
-            undefined,
+            {},
             (update: { status: string; data?: unknown }) => {
                 console.log(update)
               //log the update, the offer id might appear here
@@ -46,9 +65,6 @@ const Join = (({ useAppStore, agoricLayer }: JoinProps) => {
                 console.log('=================');
                 console.log(update);
                 console.log('=================');
-
-                useAppStore.setState({joined: true}, false);
-                localStorage.setItem('joined', 'yes');
               }
               if (update.status === 'refunded') {
                 console.log('Publication rejected');
@@ -62,14 +78,13 @@ const Join = (({ useAppStore, agoricLayer }: JoinProps) => {
         <>
             <div className="trade" style={{ width: 500 }}>
                 <div className='card'>
-                    <h2>By accepting the joining transaction, you will escrow 100 IST.</h2>
                     <button onClick={() => {
-                        join();
-                    }}>Join</button>
+                        redeem();
+                    }}>Redeem</button>
                 </div>
             </div>
         </>
     );
 });
 
-export { Join };
+export { Redeem };

@@ -92,7 +92,7 @@ export const startFutarchyContract = async permittedPowers => {
 
   const terms = { 
     joinFutarchyFee: AmountMath.make(istBrand, 100n * IST_UNIT),
-    duration: BigInt (60 * 5)
+    duration: BigInt (60)
   };
 
   const storageNode = await E(chainStorage).makeChildNode('futarchy');

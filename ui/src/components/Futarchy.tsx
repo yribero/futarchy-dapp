@@ -141,11 +141,11 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                 return;
             }
 
-            useAppStore.setState({ medians: mediansUpdate });
+            useAppStore.setState({ medians: mediansUpdate }, false);
         }, true);
 
         agoricLayer.startWatcher<Array<[string, unknown]>>(Kind.Data, 'published.agoricNames.brand', (brandsUpdate) => {
-            useAppStore.setState({ brands: Object.fromEntries(brandsUpdate) });
+            useAppStore.setState({ brands: Object.fromEntries(brandsUpdate) }, false);
         }, true);
 
         agoricLayer.startWatcher<Array<[DamOffer]>>(Kind.Children, 'published.futarchy.offers', async (offersUpdate) => {

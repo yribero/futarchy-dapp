@@ -1,6 +1,7 @@
 import { makeAgoricWalletConnection } from '@agoric/web-components';
 
 import { DamOffer, DoneDeal } from '../helpers/FutarchyTypes';
+import AgoricLayer from './AgoricLayer';
 
 type Wallet = Awaited<ReturnType<typeof makeAgoricWalletConnection>>;
 
@@ -18,4 +19,5 @@ export default interface AppState {
   approved?: boolean;
   joined?: boolean;
   error?: string;
+  agoricLayer?: AgoricLayer
 }
