@@ -77,7 +77,7 @@ const CreateOffer = (({ publish }: CreateNoteProps) => {
                             onChange={e => setCondition(parseInt(e.target.value))}
                         >
                             <option value="0">Status Quo</option>
-                            <option value="1">Project</option>
+                            <option value="1">Proposal Adopted</option>
                         </select>
                     </label>
 
