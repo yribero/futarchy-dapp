@@ -7,7 +7,6 @@ import AgoricLayer from './helpers/AgoricLayer';
 import { Join } from './components/Join';
 import { Logos } from './components/Logos';
 import { Inventory } from './components/Inventory';
-import { DoneDeal } from './helpers/FutarchyTypes';
 import { Futarchy } from './components/Futarchy';
 import { ConnectWallet } from './components/ConnectWallet';
 import { Redeem } from './components/Redeem';
@@ -69,31 +68,6 @@ const setup = async () => {
                 console.log('OUTCOME', approvedReceived)
                 useAppStore.setState({ approved: approvedReceived.result }, false);
                 console.log ('SEE IF IT IS APPROVED', useAppStore.getState().approved);
-            }
-        },
-        true
-    );
-    
-    agoricLayer.startWatcher(
-        Kind.Children,
-        'published.futarchy.doneDeals',
-        async (contracts: Array<[string, unknown]>) => {
-            let { doneDeals } = useAppStore.getState();
-    
-            for (let i = 0; i < contracts.length; i++) {
-              const id = contracts[i];
-      
-              if (doneDeals.find(dd => dd.id.toString() === id.toString()) != null) {
-                continue;
-              }
-      
-              const result : DoneDeal = await agoricLayer.queryOnce<DoneDeal>(Kind.Data, `published.futarchy.contracts.${id}`);
-              
-              if (doneDeals.find(dd => dd.id.toString() === id.toString()) != null) {
-                continue;
-              } //Checking twice because the async call in between may cause the insertion of a done deal *after* it has been checked as not existing
-      
-              doneDeals.push(result);
             }
         },
         true

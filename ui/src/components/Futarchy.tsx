@@ -10,7 +10,7 @@ import { ConnectWallet } from './ConnectWallet';
 import { ContractList } from './ContractList';
 import { OfferList } from './OfferList';
 import { CreateOffer, Offer } from './CreateOffer';
-import { DamOffer } from '../helpers/FutarchyTypes';
+import { DamOffer, DoneDeal } from '../helpers/FutarchyTypes';
 
 type FutarchyProps = {
     useAppStore: UseBoundStore<StoreApi<AppState>>,
@@ -166,6 +166,31 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
 
             setOffers(retrievedOffers);
         }, true);
+
+        agoricLayer.startWatcher(
+            Kind.Children,
+            'published.futarchy.doneDeals',
+            async (contracts: Array<[string, unknown]>) => {
+                let { doneDeals } = useAppStore.getState();
+        
+                for (let i = 0; i < contracts.length; i++) {
+                  const id = contracts[i];
+          
+                  if (doneDeals.find(dd => dd.id.toString() === id.toString()) != null) {
+                    continue;
+                  }
+          
+                  const result : DoneDeal = await agoricLayer.queryOnce<DoneDeal>(Kind.Data, `published.futarchy.contracts.${id}`);
+                  
+                  if (doneDeals.find(dd => dd.id.toString() === id.toString()) != null) {
+                    continue;
+                  } //Checking twice because the async call in between may cause the insertion of a done deal *after* it has been checked as not existing
+          
+                  doneDeals.push(result);
+                }
+            },
+            true
+        );
     }
 
     useEffect(() => {
@@ -180,6 +205,10 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
         );
     }
 
+    const formatBigInt = (value: bigint, unit: bigint = 1_000_000n): string => {
+        return (Math.round((Number(value * 1000n / unit) / 1000) * 100)/100).toString();
+    }
+
     return (
         <>
             <div className="row-center">
@@ -188,7 +217,7 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                     <h2 style={{ backgroundColor: medians[1] >= medians[0] ? '' : 'yellow' }}>Status Quo</h2>
                     <div className='row-center'>
                         <div className='item-col'>
-                            <div>Median: <b>{medians[0].toString()}</b></div>
+                            <div>Median: <b>{formatBigInt(medians[0])}</b></div>
                             <ContractList
                                 list={getContracts(0)}
                             />
@@ -270,7 +299,7 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                             </div>
                         </div>
                         <div className='item-col'>
-                            <div>Median: <b>{medians[1].toString()}</b></div>
+                            <div>Median: <b>{formatBigInt(medians[1])}</b></div>
                             <ContractList
                                 list={getContracts(1)}
                             />

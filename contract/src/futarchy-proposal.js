@@ -92,16 +92,13 @@ export const startFutarchyContract = async permittedPowers => {
 
   const terms = { 
     joinFutarchyFee: AmountMath.make(istBrand, 100n * IST_UNIT),
-    duration: BigInt (60)
+    duration: BigInt (60 * 5)
   };
 
   const storageNode = await E(chainStorage).makeChildNode('futarchy');
 
   // agoricNames gets updated each time; the promise space only once XXXXXXX
   const installation = await futarchyInstallationP;
-
-  console.log('CHECKING THE BOARD', board);
-  console.log('CHECKING THE CHAIN TIMER', chainTimerService);
 
   const { instance } = await E(startUpgradable)({
     installation,

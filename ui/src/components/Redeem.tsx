@@ -2,6 +2,7 @@ import { StoreApi, UseBoundStore } from 'zustand';
 import AgoricLayer from '../helpers/AgoricLayer';
 import AppState from '../helpers/AppState';
 import { ContractInvitationSpec } from '@agoric/smart-wallet/src/invitations';
+import { ConnectWallet } from './ConnectWallet';
 
 type RedeemProps = {
     useAppStore: UseBoundStore<StoreApi<AppState>>;
@@ -10,12 +11,9 @@ type RedeemProps = {
 }
 
 const Redeem = (({ useAppStore, approved, agoricLayer }: RedeemProps) => {
+    const { wallet, contractInstance, purses } = useAppStore.getState();
 
     const redeem = async () => {
-        const { wallet, contractInstance, brands, purses } = useAppStore.getState();
-
-        const pursesOfInterest = purses?.filter(p => ['IST', 'CashYes', 'CashNo', 'SharesYes', 'SharesNo'].includes(p.brandPetname));
-
         const getPurse = (asset: string) : Purse | undefined => {
             return purses?.find(p => p.brandPetname === asset)
         }
@@ -74,6 +72,16 @@ const Redeem = (({ useAppStore, approved, agoricLayer }: RedeemProps) => {
           );
     };
 
+    if (wallet == null) {
+        return (
+            <>
+                <ConnectWallet useAppStore={useAppStore} agoricLayer={agoricLayer} />
+            </>
+        );
+    }
+
+    //If already redeemed, show a message
+    
     return (
         <>
             <div className="trade" style={{ width: 500 }}>

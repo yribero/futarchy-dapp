@@ -14,7 +14,7 @@
 import { E, Far } from '@endo/far';
 import { M } from '@endo/patterns';
 import { AmountShape } from '@agoric/ertp/src/typeGuards.js';
-import { atomicRearrange } from '@agoric/zoe/src/contractSupport/atomicTransfer.js';
+import { atomicRearrange, atomicTransfer } from '@agoric/zoe/src/contractSupport/atomicTransfer.js';
 import { AmountMath } from '@agoric/ertp';
 
 /**
@@ -772,6 +772,10 @@ export const start = async (zcf, privateArgs) => {
     console.log('SHARE VALUE', shareValue);
     console.log('CASH VALUE', cashValue);
 
+
+    // 1. Create an empty seat to receive the partial amount
+    const tempSeat = zcf.makeEmptySeatKit().zcfSeat;
+
     /**
      * @type {[a: ZCFSeat, b: ZCFSeat, c: AmountKeywordRecord][]}
      */
@@ -801,7 +805,7 @@ export const start = async (zcf, privateArgs) => {
        */
       const exchange = [
         seat,
-        proceeds,
+        tempSeat,
         getAmount(assetName, seat.getProposal().give[assetName].value)
       ];
 
@@ -813,14 +817,29 @@ export const start = async (zcf, privateArgs) => {
     });
 
     const totalIstValue = BigInt(istValue);
-    
+
+    // 2. Decide how much to transfer (amount must be less than or equal to current allocation)
+    const partialAmount = { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) };
+
+    console.log('PARTIAL AMOUNT', partialAmount)
+    // 3. Decrement the original seat
+    atomicTransfer(
+      zcf,
+      proceeds,
+      tempSeat,
+      partialAmount,
+      partialAmount
+    );
+
     console.log('IST REQUEST', totalIstValue / UNIT);
 
     console.log(proceeds);
     console.log('CURRENT ALLOCATION', proceeds.getCurrentAllocation());
 
+    //console.log('TEMP SEAT', await tempSeat.getCurrentAllocation());
+
     //exchanges.push([proceeds, seat, { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) }]);
-    exchanges.push([proceeds, seat, AmountMath.make(joinFutarchyFee.brand, totalIstValue)]);
+    exchanges.push([tempSeat, seat, { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) }]);
 
     console.log('EXCHANGES', exchanges);
 
@@ -829,6 +848,7 @@ export const start = async (zcf, privateArgs) => {
       harden(exchanges)
     );
 
+    tempSeat.exit();
     seat.exit();
   }
 
