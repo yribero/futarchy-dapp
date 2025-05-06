@@ -188,7 +188,7 @@ test('Check Invalid Offer with multiple gives', async t => {
   };
 
   let ex;
-  let message = '"publish offer data" proposal: give: {"CashNo":{"brand":"[Alleged: CashNo brand]","value":"[100000000n]"},"CashYes":{"brand":"[Alleged: CashYes brand]","value":"[100000000n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]'
+  let message = '"Make Offer (bid| ask)" proposal: give: {"CashNo":{"brand":"[Alleged: CashNo brand]","value":"[100000000n]"},"CashYes":{"brand":"[Alleged: CashYes brand]","value":"[100000000n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]'
 
   try {
     const userSeat = await joinFutarchy(t, zoe, instance, await faucet(1000n * UNIT6));
@@ -202,7 +202,7 @@ test('Check Invalid Offer with multiple gives', async t => {
   }
 
   t.true(ex != null);
-  t.true(ex.message === message);
+  t.deepEqual(ex.message, message);
 });
 
 test('Check Invalid Offer with multiple wants', async t => {
@@ -224,7 +224,7 @@ test('Check Invalid Offer with multiple wants', async t => {
   };
 
   let ex;
-  let message = '"publish offer data" proposal: want: {"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"},"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
+  let message = '"Make Offer (bid| ask)" proposal: want: {"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"},"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
 
   try {
     const userSeat = await joinFutarchy(t, zoe, instance, await faucet(1000n * UNIT6));
@@ -237,7 +237,7 @@ test('Check Invalid Offer with multiple wants', async t => {
   }
 
   t.true(ex != null);
-  t.true(ex.message === message);
+  t.deepEqual(ex.message, message);
 });
 
 test('Check Invalid Offer 0 cash', async t => {
@@ -254,7 +254,7 @@ test('Check Invalid Offer 0 cash', async t => {
   };
 
   let ex;
-  let message = '"publish offer data" proposal: give: {"CashYes":{"brand":"[Alleged: CashYes brand]","value":"[0n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
+  let message = '"Make Offer (bid| ask)" proposal: give: {"CashYes":{"brand":"[Alleged: CashYes brand]","value":"[0n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
 
   try {
     const userSeat = await joinFutarchy(t, zoe, instance, await faucet(1000n * UNIT6));
@@ -267,7 +267,7 @@ test('Check Invalid Offer 0 cash', async t => {
   }
 
   t.true(ex != null);
-  t.true(ex.message === message);
+  t.deepEqual(ex.message, message);
 });
 
 test('Check Invalid Offer 0 shares', async t => {
@@ -284,7 +284,7 @@ test('Check Invalid Offer 0 shares', async t => {
   };
 
   let ex;
-  let message = '"publish offer data" proposal: want: {"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[0n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
+  let message = '"Make Offer (bid| ask)" proposal: want: {"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[0n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
 
   try {
     const userSeat = await joinFutarchy(t, zoe, instance, await faucet(1000n * UNIT6));
@@ -297,7 +297,7 @@ test('Check Invalid Offer 0 shares', async t => {
   }
 
   t.true(ex != null);
-  t.true(ex.message === message);
+  t.deepEqual(ex.message, message);
 });
 
 test('Check Invalid: mismatch', async t => {
@@ -327,7 +327,7 @@ test('Check Invalid: mismatch', async t => {
   }
 
   t.true(ex != null);
-  t.true(ex.message === message);
+  t.deepEqual(ex.message, message);
 });
 
 test('Check Invalid: double bid', async t => {
@@ -350,7 +350,7 @@ test('Check Invalid: double bid', async t => {
   };
 
   let ex;
-  let message = '"publish offer data" proposal: want: {"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"},"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
+  let message = '"Make Offer (bid| ask)" proposal: want: {"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"},"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
 
   try {
     const userSeat = await joinFutarchy(t, zoe, instance, await faucet(1000n * UNIT6));
@@ -363,7 +363,7 @@ test('Check Invalid: double bid', async t => {
   }
 
   t.true(ex != null);
-  t.true(ex.message === message);
+  t.deepEqual(ex.message, message);
 });
 
 test('Check Invalid: bid and ask', async t => {
@@ -386,7 +386,7 @@ test('Check Invalid: bid and ask', async t => {
   };
 
   let ex;
-  let message = '"publish offer data" proposal: want: {"CashNo":{"brand":"[Alleged: CashNo brand]","value":"[100000000n]"},"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
+  let message = '"Make Offer (bid| ask)" proposal: want: {"CashNo":{"brand":"[Alleged: CashNo brand]","value":"[100000000n]"},"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}} - Must match one of [{"CashYes":"[match:gt]"},{"CashNo":"[match:gt]"},{"SharesYes":{"brand":"[Alleged: SharesYes brand]","value":"[1000000n]"}},{"SharesNo":{"brand":"[Alleged: SharesNo brand]","value":"[1000000n]"}}]';
 
   try {
     const userSeat = await joinFutarchy(t, zoe, instance, await faucet(1000n * UNIT6));
@@ -399,5 +399,5 @@ test('Check Invalid: bid and ask', async t => {
   }
 
   t.true(ex != null);
-  t.true(ex.message === message);
+  t.deepEqual(ex.message, message);
 });

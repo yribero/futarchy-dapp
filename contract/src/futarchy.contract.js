@@ -31,7 +31,7 @@ import '@agoric/zoe/exported.js';
 
 /**
  * @import {Amount} from '@agoric/ertp/src/types.js';
- * @import {AmountKeywordRecord} from '@agoric/zoe';
+ * @import {AmountKeywordRecord, ZCFSeat} from '@agoric/zoe';
  */
 const { Fail, quote: q } = assert;
 
@@ -158,6 +158,16 @@ export const start = async (zcf, privateArgs) => {
    */
   const medians = [0n, 0n];
 
+  /**
+   * @type {number}
+   */
+  let players = 0;
+
+  /**
+   * @type {boolean}
+   */
+  let over = false;
+
   const publishedHistory = await E(privateArgs.storageNode).makeChildNode('history');
   const publishedOffers = await E(privateArgs.storageNode).makeChildNode('offers');
   const publishedDoneDeals = await E(privateArgs.storageNode).makeChildNode('doneDeals');
@@ -203,13 +213,34 @@ export const start = async (zcf, privateArgs) => {
     exit: M.any(),
   });
 
+  const redeemProposalShape = harden({
+    give: M.or(
+      { CashNo: M.any(), SharesNo: M.any()},
+      { CashYes: M.any(), SharesYes: M.any()}
+    ),
+    want: {},
+    exit: M.any(),
+  });
+
+  const cancelProposalShape = harden({
+    give: M.any(),
+    want: M.any(),
+    exit: M.any(),
+  });
+
   /** a seat for allocating proceeds of sales */
+  /**
+   * @type {ZCFSeat}
+   */
   const proceeds = zcf.makeEmptySeatKit().zcfSeat;
 
-  /**
-   * Call this method when the time is up
-   */
-  const onTimeIsUp = async () => {
+  console.log('DURATION' ,duration);
+
+  new Promise(async () => { //Setting up a timer asynchronously
+    await timerService.delay(duration);
+
+    over = true;
+
     offers.forEach(offer => { //ALL REMAINING OPEN SEATS MUST BE CLOSED
       offer.seat?.exit();
     });
@@ -220,7 +251,7 @@ export const start = async (zcf, privateArgs) => {
     }));
 
     await E(publishedOutcome).setValue(marshalledData);
-  }
+  });
 
   /**
    * 
@@ -543,6 +574,8 @@ export const start = async (zcf, privateArgs) => {
   }
 
   const joinFutarchyHandler = async joinerSeat => {
+    assert(!over, 'The game is over');
+
     const newCashNo = cashNoMint.mintGains({ CashNo: AmountMath.make(cashNoBrand, CASH * UNIT) });
     const newCashYes = cashYesMint.mintGains({ CashYes: AmountMath.make(cashYesBrand, CASH * UNIT) });
     const newSharesNo = sharesNoMint.mintGains({ SharesNo: AmountMath.make(sharesNoBrand, SHARES * UNIT) });
@@ -568,7 +601,9 @@ export const start = async (zcf, privateArgs) => {
     newSharesNo.exit();
     newSharesYes.exit();
 
-    return 'trade complete';
+    players ++;
+
+    return 'You joined futarchy';
   }
 
   const joinFutarchy = () => {
@@ -596,6 +631,8 @@ export const start = async (zcf, privateArgs) => {
    * @param {import ("@agoric/zoe").ZCFSeat} seat
    */
   const makeOfferHandler = async (seat, offerArgs) => {
+    assert(!over, 'The game is over');
+
     /**
      * @type {TimestampRecord}
      */
@@ -693,24 +730,138 @@ export const start = async (zcf, privateArgs) => {
 
     await publishAll(publications);
 
-    return resolveResult.resolved ? "Offer matched" : "Offer added";
+    return resolveResult.resolved ? "Done deal" : "Offer added";
   }
 
-  const cancelOffer = async (seat, offerArgs) => {
+  /**
+   * 
+   * @param {import ("@agoric/zoe").ZCFSeat} seat
+   * @param {*} offerArgs 
+   */
+  const cancelOfferHandler = async (seat, offerArgs) => {
+    assert(!over, 'The game is over');
+
     console.log('CANCEL ARGS', offerArgs);
-    //TODO: with the continuous invitation pattern
+
+    const offer = offers.find(offerArgs.id);
+
+    assert(offer != null, `Offer ${offerArgs.id} was not found`);
+
+    assert(
+      offer.secret == offerArgs.secret,
+      `You can't cancel offer ${offerArgs.id}, you are not the owner`
+    );
+
+    if (!offer.seat?.hasExited()) {
+      offer.seat?.exit();
+    }
+
+    offer.available = false;
+
+    await publishAll([recordInPublishedOffer(offer)]);
+
+    seat.exit();
   }
 
-  const redeem = async (seat, offerArgs) => {
-    //TODO: exchange cash and shares for IST
+  /**
+   * 
+   * @param {import ("@agoric/zoe").ZCFSeat} seat
+   * @param {*} offerArgs 
+   */
+  const redeemHandler = async (seat, offerArgs) => {
+    assert(over, 'The game is not over yet');
+
+    const sharePrice = medians[1] >= medians[0] ? medians[1] : medians[0];
+
+    let shareValue = Math.max(0, Math.min(200, Number(sharePrice))); //bound shareValue between 0 and 200 to avoid negative cash value
+
+    console.log('INITIAL SHARE VALUE', shareValue);
+
+    shareValue = Number (joinFutarchyFee.value / UNIT) / Number (SHARES) * shareValue / 200; //e.g. 50
+
+    console.log('jff VALUE PART', Number (joinFutarchyFee.value / UNIT));
+    console.log('SHARES VALUE PART', Number (SHARES));
+    console.log('RATIO', Number (joinFutarchyFee.value / UNIT) / Number (SHARES) * shareValue);
+
+    const cashValue = Number (joinFutarchyFee.value / UNIT) / Number(CASH) * (1 - shareValue) / 2; //e.g. 0.05
+
+    let istValue = 0;
+
+    console.log('SHARE VALUE', shareValue);
+    console.log('CASH VALUE', cashValue);
+
+    const exchanges = [];
+
+    Object.keys(seat.getProposal().give).forEach(assetName => {
+      if (medians[1] >= medians[0] && (['CashNo', 'SharesNo'].includes(assetName)) ) {
+        return;
+      }
+
+      if (medians[1] < medians[0] && (['CashYes', 'SharesYes'].includes(assetName)) ) {
+        return;
+      }
+
+      let multiplier = 0;
+
+      if (['CashNo', 'CashYes'].includes(assetName) ) {
+        multiplier = cashValue;
+      } else if (['SharesNo', 'SharesYes'].includes(assetName) ) {
+        multiplier = shareValue;
+      }
+
+      istValue += Number(seat.getProposal().give[assetName].value) * multiplier;
+
+      exchanges.push([
+        seat,
+        proceeds,
+        getAmount(assetName, seat.getProposal().give[assetName].value)
+      ]);
+    });
+
+    const totalIstValue = BigInt(istValue);
+    
+    console.log('IST REQUEST', totalIstValue / UNIT);
+
+    console.log('joinFutarchyFee', joinFutarchyFee.brand.getAllegedName());
+
+    console.log(proceeds);
+    console.log('CURRENT ALLOCATION', proceeds.getCurrentAllocation());
+
+    atomicRearrange(
+      zcf,
+      harden([
+        ...exchanges,
+        [proceeds, seat, { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) }]
+      ]),
+    );
+
+    seat.exit();
   }
 
   const makeOffer = () => {
     return zcf.makeInvitation(
       makeOfferHandler,
-      'publish offer data',
+      'Make Offer (bid| ask)',
       undefined,
       offerProposalShape,
+    );
+  }
+
+  const redeem = () => {
+    return zcf.makeInvitation(
+      redeemHandler,
+      'Redeem',
+      undefined,
+      redeemProposalShape,
+    );
+  }
+
+  const cancelOffer = () => {
+    return zcf.makeInvitation(
+      cancelOfferHandler,
+      'Cancel Offer',
+      undefined,
+      cancelProposalShape,
     );
   }
 

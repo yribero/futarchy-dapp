@@ -17,7 +17,8 @@ const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
  * 
  * @typedef {{
  *     seat: import ("@agoric/zoe").UserSeat
- *     purses: any
+ *     purses: any,
+ *     seats: UserSeat[]
  * }} User
  * 
  * @typedef {function(UserSeat): void} SeatHook
@@ -40,6 +41,7 @@ const contractPath = myRequire.resolve(`../src/futarchy.contract.js`);
  * @import {Instance} from '@agoric/zoe/src/zoeService/utils.js';
  * @import {Purse} from '@agoric/ertp/src/types.js';
  * @import {UserSeat} from '@agoric/zoe';
+ * @import {TimerService} from '@agoric/swingset-vat/tools/manual-timer.js';
  */
 
 const UNIT6 = 1_000_000n;
@@ -99,7 +101,7 @@ const makeProposal = async (t, zoe, instance, purses, proposal, args = {}) => {
     return seat;
 };
 
-const createInstance = async (t) => {
+const createInstance = async (t, duration = 300n) => {
     const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
 
     const installation = E(zoe).install(bundle);
@@ -114,21 +116,23 @@ const createInstance = async (t) => {
         }
     });
 
+    /**
+     * @type {TimerService}
+     */
     const timerService = buildManualTimer(console.log, 0n);
 
     const { instance } = await E(zoe).startInstance(
         installation,
         { Price: feeIssuer },
-        { joinFutarchyFee },
+        { joinFutarchyFee, duration },
         {
             storageNode: chainStorage.makeChildNode('futarchy'),
             board,
-            timerService,
-            isTest: true
+            timerService
         }
     );
 
-    return { instance, chainStorage };
+    return { instance, chainStorage, timerService };
 }
 
 /**
@@ -141,7 +145,7 @@ const createInstance = async (t) => {
 const makeUser = async (issuers, seat) => {
     const purses = {};
 
-    for (let asset of ['CashNo', 'CashYes', 'SharesNo', 'SharesYes']) {
+    for (let asset of ['CashNo', 'CashYes', 'SharesNo', 'SharesYes', 'Price']) {
         /**
          * @type {Purse}
          */
@@ -156,7 +160,8 @@ const makeUser = async (issuers, seat) => {
 
     return {
         seat,
-        purses
+        purses,
+        seats: []
     }
 }
 
@@ -202,22 +207,33 @@ const joinFutarchyAndMakeOffers = async (t, instance, remoteOffers) => {
             remoteOffer.beforeOfferHook(purses, remoteOffer.proposal, remoteOffer.args)
         }
 
-        const result = await makeProposal(t, zoe, instance, purses, remoteOffer.proposal, remoteOffer.args);
+        const seat = await makeProposal(t, zoe, instance, purses, remoteOffer.proposal, remoteOffer.args);
 
-        results.push(result);
+        users[remoteOffer.user].seats.push(seat);
+
+        results.push(seat);
 
         if (remoteOffer.afterOfferHook != null) {
             remoteOffer.afterOfferHook(purses, remoteOffer.proposal, remoteOffer.args)
         }
 
         if (remoteOffer.seatHook != null) {
-            remoteOffer.seatHook(result);
+            remoteOffer.seatHook(seat);
         }
     }
 
-    return results;
+    return {
+        results,
+        users
+    };
 }
 
+/**
+ * 
+ * @param {*} t 
+ * @param {any} actual 
+ * @param {any} expected 
+ */
 const assertEqualObjects = (t, actual, expected) => {
     const firstKeys = Object.keys(actual);
     const secondKeys = Object.keys(expected);
@@ -236,7 +252,92 @@ const assertEqualObjects = (t, actual, expected) => {
         );
     }
 }
+
 /**
- * @exports {RemoteOffer, SeatHook, OfferHook}
+ * 
+ * @param {*} t 
+ * @param {*} instance 
+ * @param {*} purses 
+ * @param {number} condition
+ * @returns 
  */
-export { UNIT6, makeTestContext, joinFutarchy, makeProposal, createInstance, makeUser, joinFutarchyAndMakeOffers, assertEqualObjects };
+const redeemAll = async (t, instance, purses, condition) =>  {
+    const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
+
+    const publicFacet = await E(zoe).getPublicFacet(instance);
+
+    const toTrade = await E(publicFacet).redeem();
+
+    const feePart = {};
+
+    const proposal = {
+        give: {},
+        want: {}
+    }
+
+    let keys;
+
+    if (condition === 0) {
+        keys = ['CashNo', 'SharesNo'];
+    } else {
+        keys = ['CashYes', 'SharesYes'];
+    }
+
+    for (let key of keys) {
+        const purse = purses[key];
+
+        const assetName = purse.getAllegedBrand().getAllegedName();
+
+        proposal.give[assetName] = purse.getCurrentAmount();
+
+        const fee = purse.withdraw(purse.getCurrentAmount());
+
+        feePart[assetName] = fee;
+    }
+
+    console.log('PROPOSAL', proposal);
+    console.log('FEES', feePart);
+
+    const seat = await E(zoe).offer(
+        toTrade,
+        proposal,
+        feePart,
+        {}
+    );
+
+    await E(seat).getOfferResult();
+
+    return seat;
+}
+
+/**
+ * 
+ * @param {User} user 
+ */
+const finalizeUserSeats = async (t, instance, user) => {
+    const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
+
+    const { brands, issuers } = await E(zoe).getTerms(instance);
+
+    for (let seat of user.seats) {
+        try {
+            const payouts = await seat.getPayouts();
+
+            for (let key of Object.keys(payouts)) {
+                const payment = await seat.getPayout(key);
+
+                const purse = user.purses[key];
+
+                await purse.deposit(payment);
+            }
+        } catch (e) {
+            //IGNORE
+            console.warn(`While transfering payouts to user ${user}`, e.message)
+        }
+    }
+}
+
+/**
+ * @exports {RemoteOffer, SeatHook, OfferHook, User}
+ */
+export { UNIT6, makeTestContext, joinFutarchy, makeProposal, createInstance, makeUser, joinFutarchyAndMakeOffers, assertEqualObjects, redeemAll, finalizeUserSeats };
