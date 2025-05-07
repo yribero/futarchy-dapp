@@ -130,10 +130,6 @@ export const startFutarchyContract = async permittedPowers => {
     },
   } = val;
 
-  console.log("VAL", val);
-  console.log("ISSUERS", val.issuers);
-  console.log('CoreEval script: share via agoricNames:', cnb);
-
   produceInstance.reset();
   produceInstance.resolve(instance);
 
@@ -160,8 +156,6 @@ export const startFutarchyContract = async permittedPowers => {
   for (let brand of [cnb, cyb, snb, syb]) {
     try {
       await publishBrandInfo(chainStorage, board, brand);
-
-      console.log('ONE BRAND SUCCESSFULLY PUBLISHED', brand)
     } catch (e) {
       console.error('COULD NOT PUBLISH A BRAND', e);
     }

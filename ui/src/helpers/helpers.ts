@@ -27,10 +27,14 @@ const isPrimitive = (obj: any) => {
     return (obj !== Object(obj));
 }
 
-const sha512 = (str: string) => {
+const sha512 = async (str: string) => {
     return crypto.subtle.digest("SHA-512", new TextEncoder().encode(str)).then(buf => {
         return Array.prototype.map.call(new Uint8Array(buf), x => (('00' + x.toString(16)).slice(-2))).join('');
     });
 }
 
-export { deepEqual, isPrimitive, sha512 };
+const formatBigInt = (value: bigint, unit: bigint = 1_000_000n): string => {
+    return (Math.round((Number(value * 1000n / unit) / 1000) * 100)/100).toString();
+}
+
+export { deepEqual, isPrimitive, sha512, formatBigInt };

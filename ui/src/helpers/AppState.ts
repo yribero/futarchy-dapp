@@ -19,5 +19,6 @@ export default interface AppState {
   approved?: boolean;
   joined?: boolean;
   error?: string;
-  agoricLayer?: AgoricLayer
+  agoricLayer?: AgoricLayer;
+  redeemed?: boolean;
 }

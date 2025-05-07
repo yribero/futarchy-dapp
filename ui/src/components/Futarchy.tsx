@@ -11,6 +11,7 @@ import { ContractList } from './ContractList';
 import { OfferList } from './OfferList';
 import { CreateOffer, Offer } from './CreateOffer';
 import { DamOffer, DoneDeal } from '../helpers/FutarchyTypes';
+import { formatBigInt } from '../helpers/helpers';
 
 type FutarchyProps = {
     useAppStore: UseBoundStore<StoreApi<AppState>>,
@@ -19,7 +20,7 @@ type FutarchyProps = {
 
 const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
 
-    const { wallet, purses, medians, brands } = useAppStore.getState();
+    const { wallet, purses, medians, brands, doneDeals } = useAppStore.getState();
 
     const [offers, setOffers] = useState<DamOffer[]>([]);
 
@@ -39,7 +40,7 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
 
     const makeAmount = (asset: string, value: bigint) => {
         if (brands == null) {
-            throw new Error ('No brands available');
+            throw new Error('No brands available');
         }
 
         return {
@@ -149,7 +150,7 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
         }, true);
 
         agoricLayer.startWatcher<Array<[DamOffer]>>(Kind.Children, 'published.futarchy.offers', async (offersUpdate) => {
-            const retrievedOffers : Array<DamOffer> = [];
+            const retrievedOffers: Array<DamOffer> = [];
 
             for (let i = 0; i < offersUpdate.length; i++) {
                 const id = offersUpdate[i];
@@ -157,7 +158,7 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                 const offer: DamOffer = await agoricLayer.queryOnce<DamOffer>(Kind.Data, `published.futarchy.offers.${id}`);
 
                 setOffers(offers.filter(a => a.id != offer.id));
-                
+
                 if (offer.available) {
                     retrievedOffers.push(offer);
                 }
@@ -170,24 +171,38 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
         agoricLayer.startWatcher(
             Kind.Children,
             'published.futarchy.doneDeals',
-            async (contracts: Array<[string, unknown]>) => {
+            async (doneDealsUpdate: Array<[string, unknown]>) => {
+                console.log('DONE DEAL UPDATE', doneDealsUpdate);
+
                 let { doneDeals } = useAppStore.getState();
-        
-                for (let i = 0; i < contracts.length; i++) {
-                  const id = contracts[i];
-          
-                  if (doneDeals.find(dd => dd.id.toString() === id.toString()) != null) {
-                    continue;
-                  }
-          
-                  const result : DoneDeal = await agoricLayer.queryOnce<DoneDeal>(Kind.Data, `published.futarchy.contracts.${id}`);
-                  
-                  if (doneDeals.find(dd => dd.id.toString() === id.toString()) != null) {
-                    continue;
-                  } //Checking twice because the async call in between may cause the insertion of a done deal *after* it has been checked as not existing
-          
-                  doneDeals.push(result);
+
+                const newList: DoneDeal[] = [];
+
+                for (let i = 0; i < doneDealsUpdate.length; i++) {
+                    const id = doneDealsUpdate[i];
+
+                    let existing: DoneDeal | undefined = doneDeals.find(dd => dd.id.toString() === id.toString());
+
+                    if (existing != null) {
+                        newList.push(existing);
+                        continue;
+                    }
+
+                    const result: DoneDeal = await agoricLayer.queryOnce<DoneDeal>(Kind.Data, `published.futarchy.doneDeals.${id}`);
+
+                    console.log('DONE DEAL', result);
+
+                    existing = doneDeals.find(dd => dd.id.toString() === id.toString());
+
+                    if (existing!= null) {
+                        newList.push(existing);
+                        continue;
+                    } //Checking twice because the async call in between may cause the insertion of a done deal *after* it has been checked as not existing
+
+                    newList.push(result);
                 }
+
+                useAppStore.setState({ doneDeals: newList }, false);
             },
             true
         );
@@ -205,12 +220,16 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
         );
     }
 
-    const formatBigInt = (value: bigint, unit: bigint = 1_000_000n): string => {
-        return (Math.round((Number(value * 1000n / unit) / 1000) * 100)/100).toString();
-    }
-
     return (
         <>
+            <div className="row-center">
+                <div className="trade" style={{ width: '100%' }}>
+                    <div className='card'>
+                        <h2>Trade in both markets. The median value of the last seven deals in each market will decide the outcome: the highest price win, the proposal goes through in can of parity.</h2>
+                    </div>
+                </div>
+            </div>
+
             <div className="row-center">
 
                 <div className='item-col'>
@@ -219,7 +238,7 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                         <div className='item-col'>
                             <div>Median: <b>{formatBigInt(medians[0])}</b></div>
                             <ContractList
-                                list={getContracts(0)}
+                                list={doneDeals.filter(dd => dd.condition === 0)}
                             />
                         </div>
                         <div className='item-col'>

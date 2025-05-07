@@ -32,9 +32,9 @@ const updateJoined = () =>  {
     console.log("CASHYES purse AMOUNT", cashYesPurse?.currentAmount)
     console.log("CASHNO purse AMOUNT", cashNoPurse?.currentAmount)
 
-    useAppStore.setState({
-        joined: cashYesPurse?.currentAmount.value != null || cashNoPurse?.currentAmount.value != null,
-    }, false);
+    const joined = cashYesPurse?.currentAmount.value != null || cashNoPurse?.currentAmount.value != null
+    
+    useAppStore.setState({ joined }, false);
 }
 
 const setup = async () => {
@@ -115,8 +115,6 @@ function App() {
                 <h1>Futarchy Dapp (Status Quo)</h1>
             }
 
-            <Logos />
-
             {approved == null && joined != true &&
                 <div>
                     <Join useAppStore={useAppStore} agoricLayer={agoricLayer}/>
@@ -136,7 +134,7 @@ function App() {
                 purses={pursesOfInterest ? pursesOfInterest : []}
             />
 
-
+            <Logos />
         </>
     );
 }

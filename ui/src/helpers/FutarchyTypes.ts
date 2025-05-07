@@ -16,9 +16,9 @@ export interface DoneDeal {
     condition: number;
     from: string;
     to: string;
-    quantity: number,
-    price: number;
-    cash: number;
+    quantity: bigint,
+    price: bigint;
+    cash: bigint;
 }
 
 export interface ContractWallet {
