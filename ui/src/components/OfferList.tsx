@@ -59,7 +59,7 @@ const OfferList = (({ list, type, address, useAppStore, condition }: OfferListPr
     return (
         <>
             <div className="trade" style={{ width: 150 }}>
-                <b>{type === 'ask' ? 'Asks' : 'Bids'} ({list?.length})</b>
+                <b>{type === 'ask' ? 'Asks' : 'Bids'}</b>
                 <ul className="barelist">
                     {list ? list.filter(o => o.condition === condition).filter(o => o.type === type).map((offer) => {
                         return <li key={ offer.id }>{(offer.price / UNIT6).toString()} {offer.address === address && (
