@@ -20,7 +20,7 @@ type FutarchyProps = {
 
 const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
 
-    const { wallet, purses, medians, brands, doneDeals } = useAppStore.getState();
+    const { wallet, purses, medians, brands, doneDeals, bids, asks } = useAppStore.getState();
 
     const [offers, setOffers] = useState<DamOffer[]>([]);
 
@@ -119,12 +119,6 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
             },
             //Here should go the offer id, if it's the first time
         );
-    }
-
-    const getContracts = (condition: number) => {
-        const { doneDeals } = useAppStore.getState();
-
-        return doneDeals?.filter(dd => dd.condition === condition);
     }
 
     const getoffers = (type: string, condition: number) => {
@@ -262,16 +256,20 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                             </div>
                             <div className='item-row'>
                                 <OfferList
-                                    type='Asks'
+                                    type='ask'
                                     address={wallet?.address}
-                                    list={getoffers('ask', 0)}
+                                    list={offers}
+                                    condition={0}
+                                    useAppStore={useAppStore}
                                 />
                             </div>
                             <div className='item-row'>
                                 <OfferList
-                                    type='Bids'
+                                    type='bid'
                                     address={wallet?.address}
-                                    list={getoffers('bid', 0)}
+                                    list={offers}
+                                    condition={0}
+                                    useAppStore={useAppStore}
                                 />
                             </div>
                         </div>
@@ -304,23 +302,27 @@ const Futarchy = (({ useAppStore, agoricLayer }: FutarchyProps) => {
                             </div>
                             <div className='item-row'>
                                 <OfferList
-                                    type='Asks'
+                                    type='ask'
                                     address={wallet?.address}
-                                    list={getoffers('ask', 1)}
+                                    list={offers}
+                                    condition={1}
+                                    useAppStore={useAppStore}
                                 />
                             </div>
                             <div className='item-row'>
                                 <OfferList
-                                    type='Bids'
+                                    type='bid'
                                     address={wallet?.address}
-                                    list={getoffers('bid', 1)}
+                                    list={offers}
+                                    condition={1}
+                                    useAppStore={useAppStore}
                                 />
                             </div>
                         </div>
                         <div className='item-col'>
                             <div>Median: <b>{formatBigInt(medians[1])}</b></div>
                             <ContractList
-                                list={getContracts(1)}
+                                list={doneDeals.filter(dd => dd.condition === 1)}
                             />
                         </div>
                     </div>

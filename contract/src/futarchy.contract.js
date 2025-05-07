@@ -226,7 +226,9 @@ export const start = async (zcf, privateArgs) => {
     over = true;
 
     offers.forEach(offer => { //ALL REMAINING OPEN SEATS MUST BE CLOSED
-      offer.seat?.exit();
+      if (!offer.seat?.hasExited()) {
+        offer.seat?.exit();
+      }
     });
 
     let marshalledData = JSON.stringify(await E(marshaller).toCapData({
@@ -725,7 +727,7 @@ export const start = async (zcf, privateArgs) => {
 
     console.log('CANCEL ARGS', offerArgs);
 
-    const offer = offers.find(offerArgs.id);
+    const offer = offers.find(offer => offer.id === offerArgs.id);
 
     assert(offer != null, `Offer ${offerArgs.id} was not found`);
 
@@ -739,6 +741,9 @@ export const start = async (zcf, privateArgs) => {
     }
 
     offer.available = false;
+
+    const index = offers.findIndex(o => o.id === offer.id);
+    offers.splice(index, 1);
 
     await publishAll([recordInPublishedOffer(offer)]);
 
@@ -855,6 +860,8 @@ export const start = async (zcf, privateArgs) => {
   }
 
   const cancelOffer = () => {
+    console.log('CANCEL OFFER INVOKED');
+
     return zcf.makeInvitation(
       cancelOfferHandler,
       'Cancel Offer',

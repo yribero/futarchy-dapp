@@ -257,6 +257,49 @@ const assertEqualObjects = (t, actual, expected) => {
  * 
  * @param {*} t 
  * @param {*} instance 
+ * @param {{ id: bigint }} offer
+ * @param {string} secret 
+ * @returns 
+ */
+const cancelOffer = async (t, instance, offer, secret) =>  {
+    const { zoe, bundle, bundleCache, feeMintAccess } = t.context;
+
+    const publicFacet = await E(zoe).getPublicFacet(instance);
+
+    const toTrade = await E(publicFacet).cancelOffer();
+
+    const proposal = {
+        give: {},
+        want: {}
+    };
+
+    const args = {
+        id: offer.id,
+        secret: secret
+    }
+
+    console.log('OFFER', offer);
+
+    console.log('TO-TRADE', toTrade);
+    console.log('PROPOSAL', proposal);
+    console.log('ARGS', args);
+
+    const seat = await E(zoe).offer(
+        toTrade,
+        proposal,
+        {},
+        args
+    );
+
+    await E(seat).getOfferResult();
+
+    return seat;
+}
+
+/**
+ * 
+ * @param {*} t 
+ * @param {*} instance 
  * @param {*} purses 
  * @param {number} condition
  * @returns 
@@ -340,4 +383,5 @@ const finalizeUserSeats = async (t, instance, user) => {
 /**
  * @exports {RemoteOffer, SeatHook, OfferHook, User}
  */
-export { UNIT6, makeTestContext, joinFutarchy, makeProposal, createInstance, makeUser, joinFutarchyAndMakeOffers, assertEqualObjects, redeemAll, finalizeUserSeats };
+export { UNIT6, makeTestContext, joinFutarchy, makeProposal, createInstance, cancelOffer,
+    makeUser, joinFutarchyAndMakeOffers, assertEqualObjects, redeemAll, finalizeUserSeats };

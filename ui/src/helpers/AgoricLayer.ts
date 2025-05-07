@@ -10,7 +10,6 @@ import { deepEqual } from '../helpers/helpers.ts';
 import { WatcherHandler } from '../helpers/AgoricExtendedTypes.ts'
 import { StoreApi, UseBoundStore } from 'zustand';
 import AppState from './AppState.ts';
-import { ContractWallet } from './FutarchyTypes.ts';
 import { subscribeLatest } from '@agoric/notifier';
 
 export default class AgoricLayer {
@@ -102,7 +101,7 @@ export default class AgoricLayer {
         useAppStore.setState({ wallet }, false);
 
         const { pursesNotifier } = wallet;
-        
+
         for await (const purses of subscribeLatest<Purse[]>(pursesNotifier)) {
             useAppStore.setState({ purses }, false);
 

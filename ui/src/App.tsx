@@ -93,9 +93,9 @@ function App() {
             <>
                 <h1>Futarchy Dapp</h1>
 
-                <Logos />
-
                 <ConnectWallet useAppStore={useAppStore} agoricLayer={agoricLayer}/>
+
+                <Logos />
             </>
         );
     }
