@@ -87,8 +87,13 @@ test('Redeem when no txs happened', async t => {
     /**
      * @type {UserSeat | undefined}
      */
-    let redeemSeat;
+    let redeemSeatA;
 
+    /**
+     * @type {UserSeat | undefined}
+     */
+    let redeemSeatB;
+        
     try {
         const {
             results,
@@ -116,6 +121,12 @@ test('Redeem when no txs happened', async t => {
         const userA = users?.a;
 
         /**
+         * @type {User}
+         */
+        const userB = users?.b;
+
+
+        /**
          * @type {any}
          */
         const outcome = chainStorage.getBody('mockChainStorageRoot.futarchy.outcome');
@@ -125,18 +136,18 @@ test('Redeem when no txs happened', async t => {
 
         console.log('OUTCOME', outcome);
 
-        redeemSeat = await redeemAll(t, instance, userA.purses, outcome.result ? 1 : 0);
+        redeemSeatA = await redeemAll(t, instance, userA.purses, outcome.result ? 1 : 0);
+        redeemSeatB = await redeemAll(t, instance, userB.purses, outcome.result ? 1 : 0);
     } catch (e) {
         console.error(e);
         ex = e;
     }
 
-    console.log('REDEEM PAYOUTS', await redeemSeat?.getPayouts());
-    //console.log('REDEEM CashYes', await issuers.CashYes.getAmountOf(await redeemSeat?.getPayout('CashYes')));
-    //console.log('REDEEM Price', await issuers.Price.getAmountOf(await redeemSeat?.getPayout('Price')));
-    const keys = await E(chainStorage).keys();
+    const userAredeemedPayout = await issuers.Price.getAmountOf(await redeemSeatA?.getPayout('Price'));
+    const userBredeemedPayout = await issuers.Price.getAmountOf(await redeemSeatA?.getPayout('Price'));
 
-
+    t.deepEqual(userAredeemedPayout.value, 100n * UNIT6);
+    t.deepEqual(userBredeemedPayout.value, 100n * UNIT6);
 
     t.true(ex == null);
 });

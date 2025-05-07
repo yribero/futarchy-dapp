@@ -53,7 +53,7 @@ test('Redeem when no txs happened', async t => {
         {
             proposal: {
                 give: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT6)) },
-                want: { CashYes: AmountMath.make(brands.CashYes, BigInt(200n * UNIT6)) }
+                want: { CashYes: AmountMath.make(brands.CashYes, BigInt(100n * UNIT6)) }
             },
             args: {
                 address: "a",
@@ -67,7 +67,7 @@ test('Redeem when no txs happened', async t => {
         },
         {
             proposal: {
-                give: { CashYes: AmountMath.make(brands.CashYes, BigInt(200n * UNIT6)) },
+                give: { CashYes: AmountMath.make(brands.CashYes, BigInt(100n * UNIT6)) },
                 want: { SharesYes: AmountMath.make(brands.SharesYes, BigInt(1n * UNIT6)) }
             },
             args: {
@@ -141,8 +141,8 @@ test('Redeem when no txs happened', async t => {
     const userAredeemedPayout = await issuers.Price.getAmountOf(await redeemSeatA?.getPayout('Price'));
     const userBredeemedPayout = await issuers.Price.getAmountOf(await redeemSeatB?.getPayout('Price'));
 
-    t.deepEqual(userAredeemedPayout.value, 99n * UNIT6);
-    t.deepEqual(userBredeemedPayout.value, 101n * UNIT6);
+    t.deepEqual(userAredeemedPayout.value, 100n * UNIT6);
+    t.deepEqual(userBredeemedPayout.value, 100n * UNIT6);
 
     t.true(ex == null);
 });

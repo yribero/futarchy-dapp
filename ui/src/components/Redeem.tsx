@@ -86,6 +86,7 @@ const Redeem = (({ useAppStore, approved, agoricLayer }: RedeemProps) => {
         <>
             <div className="trade" style={{ width: 500 }}>
                 <div className='card'>
+                    <h2>By clicking redeem you will exchange your tokens (under the winning condition) for IST. Depending on your market performance, you might get back more or less than you initially deposited.</h2>
                     <button onClick={() => {
                         redeem();
                     }}>Redeem</button>

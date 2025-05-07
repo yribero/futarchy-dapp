@@ -102,7 +102,18 @@ function App() {
 
     return (
         <>
-            <h1>Futarchy Dapp</h1>
+            {
+                approved == null &&
+                <h1>Futarchy Dapp</h1>
+            }
+            {
+                approved === true &&
+                <h1>Futarchy Dapp (Proposal Approved)</h1>
+            }
+            {
+                approved === false &&
+                <h1>Futarchy Dapp (Status Quo)</h1>
+            }
 
             <Logos />
 

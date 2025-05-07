@@ -755,17 +755,12 @@ export const start = async (zcf, privateArgs) => {
 
     const sharePrice = medians[1] >= medians[0] ? medians[1] : medians[0];
 
-    let shareValue = Math.max(0, Math.min(200, Number(sharePrice))); //bound shareValue between 0 and 200 to avoid negative cash value
+    console.log('SHARE PRICE FROM MEDIAN', sharePrice);
 
-    console.log('INITIAL SHARE VALUE', shareValue);
+    let shareValue = Math.max(0, Math.min(200, Number(sharePrice / UNIT))); //bound shareValue between 0 and 200 to avoid negative cash value
 
     shareValue = Number (joinFutarchyFee.value / UNIT) / Number (SHARES) * shareValue / 200; //e.g. 50
-
-    console.log('jff VALUE PART', Number (joinFutarchyFee.value / UNIT));
-    console.log('SHARES VALUE PART', Number (SHARES));
-    console.log('RATIO', Number (joinFutarchyFee.value / UNIT) / Number (SHARES) * shareValue);
-
-    const cashValue = Number (joinFutarchyFee.value / UNIT) / Number(CASH) * (1 - shareValue) / 2; //e.g. 0.05
+    const cashValue = Number (joinFutarchyFee.value / UNIT) / Number(CASH) * (1 - shareValue); //e.g. 0.05
 
     let istValue = 0;
 
@@ -809,11 +804,7 @@ export const start = async (zcf, privateArgs) => {
         getAmount(assetName, seat.getProposal().give[assetName].value)
       ];
 
-      console.log('EXCHANGE', exchange);
-
       exchanges.push(exchange);
-
-      console.log('EXCHANGES', exchanges);
     });
 
     const totalIstValue = BigInt(istValue);
@@ -821,7 +812,6 @@ export const start = async (zcf, privateArgs) => {
     // 2. Decide how much to transfer (amount must be less than or equal to current allocation)
     const partialAmount = { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) };
 
-    console.log('PARTIAL AMOUNT', partialAmount)
     // 3. Decrement the original seat
     atomicTransfer(
       zcf,
@@ -834,14 +824,8 @@ export const start = async (zcf, privateArgs) => {
     console.log('IST REQUEST', totalIstValue / UNIT);
 
     console.log(proceeds);
-    console.log('CURRENT ALLOCATION', proceeds.getCurrentAllocation());
 
-    //console.log('TEMP SEAT', await tempSeat.getCurrentAllocation());
-
-    //exchanges.push([proceeds, seat, { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) }]);
     exchanges.push([tempSeat, seat, { Price: AmountMath.make(joinFutarchyFee.brand, totalIstValue) }]);
-
-    console.log('EXCHANGES', exchanges);
 
     atomicRearrange(
       zcf,
