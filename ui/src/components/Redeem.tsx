@@ -17,6 +17,8 @@ const Redeem = (({ useAppStore, approved, agoricLayer }: RedeemProps) => {
     const updateRedeemed = () =>  {
         const { purses } = useAppStore.getState();
     
+        console.log('AM I CALLED?');
+        
         if (purses == null) {
             return
         }
@@ -31,9 +33,11 @@ const Redeem = (({ useAppStore, approved, agoricLayer }: RedeemProps) => {
             cashPurse = purses.find(p => p.brandPetname === 'CashYes');
             sharesPurse = purses.find(p => p.brandPetname === 'SharesYes');
         }
-    
+
         const joined = cashPurse?.currentAmount.value != null || sharesPurse?.currentAmount.value != null
         
+        console.log('IS IT JOINED?', joined);
+
         if (!joined) {
             return;
         }
@@ -120,6 +124,7 @@ const Redeem = (({ useAppStore, approved, agoricLayer }: RedeemProps) => {
         );
     }
 
+    {redeemed && console.log('REDEEMED', redeemed)}
     if (redeemed) {
         return (
             <>

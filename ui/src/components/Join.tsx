@@ -60,7 +60,7 @@ const Join = (({ useAppStore, agoricLayer }: JoinProps) => {
 
     return (
         <>
-            <div className="trade" style={{ width: 500 }}>
+            <div className="trade" style={{ width: '100%' }}>
                 <div className='card'>
                     <h2>By accepting the joining transaction, you will escrow 100 IST.</h2>
                     <button onClick={() => {

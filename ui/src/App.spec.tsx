@@ -1,6 +1,6 @@
 import './installSesLockdown';
 import { render, screen } from '@testing-library/react';
-import App from './AppOld';
+import App from './App';
 
 describe('App.tsx', () => {
   it('renders app title', async () => {

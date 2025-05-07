@@ -101,15 +101,34 @@ export default class AgoricLayer {
         const wallet = await makeAgoricWalletConnection(this.watcher, this.ENDPOINTS.RPC);
         useAppStore.setState({ wallet }, false);
 
-        console.log('WALLET', useAppStore.getState().wallet)
         const { pursesNotifier } = wallet;
+        
         for await (const purses of subscribeLatest<Purse[]>(pursesNotifier)) {
-            console.log('got purses', purses);
             useAppStore.setState({ purses }, false);
 
             if (useAppStore.getState().purses?.find(p => p.brandPetname === 'CashYes') != null) {
                 useAppStore.setState({joined: true}, false);
+
+                const { approved } = useAppStore.getState();
+
+                let cashPurse;
+                let sharesPurse;
+
+                if (approved === false) {
+                    cashPurse = purses.find(p => p.brandPetname === 'CashNo');
+                    sharesPurse = purses.find(p => p.brandPetname === 'SharesNo');
+                } else if (approved === true) {
+                    cashPurse = purses.find(p => p.brandPetname === 'CashYes');
+                    sharesPurse = purses.find(p => p.brandPetname === 'SharesYes');
+                }
+
+                const redeemed = cashPurse?.currentAmount.value === 0n && sharesPurse?.currentAmount.value === 0n;
+        
+                useAppStore.setState({ 
+                    redeemed
+                }, false);
             }
+
 
             const { contractInstance } = useAppStore.getState();
 
@@ -129,15 +148,6 @@ export default class AgoricLayer {
 
                     console.log(`Was there an error? ${status?.status?.error}`)
                     useAppStore.setState({ error: status?.status?.error }, false);
-
-                    const result: ContractWallet = await this.watcher.queryOnce([Kind.Data, `published.futarchy.wallets.${wallet.address}`]);
-
-                    console.log(`Showing the content`);
-                    console.log(result);
-
-                    if (result == null || typeof result !== 'object') {
-                        return;
-                    }
                 },
             );
         }
