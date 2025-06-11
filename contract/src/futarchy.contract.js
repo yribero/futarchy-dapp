@@ -188,7 +188,12 @@ export const start = async (zcf, privateArgs) => {
 
   const joinProposalShape = harden({
     give: { Price: M.eq(joinFutarchyFee) },
-    want: {},
+    want: ({
+      CashYes: M.eq(AmountMath.make(cashYesBrand, 10000n * UNIT)),
+      CashNo: M.eq(AmountMath.make(cashNoBrand, 10000n * UNIT)),
+      SharesYes: M.eq(AmountMath.make(sharesYesBrand, 100n * UNIT)),
+      SharesNo: M.eq(AmountMath.make(sharesNoBrand, 100n * UNIT))
+    }),
     exit: M.any(),
   });
 

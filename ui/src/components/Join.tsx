@@ -26,9 +26,17 @@ const Join = (({ useAppStore, agoricLayer }: JoinProps) => {
         };
 
         const give = { Price: { brand: brands?.IST, value: 100n * 1_000_000n } };
-        const want = {};
+        const want = {
+            CashNo: { brand: brands?.CashNo, value: 10000n * 1_000_000n },
+            CashYes: { brand: brands?.CashYes, value: 10000n * 1_000_000n },
+            SharesNo: { brand: brands?.SharesNo, value: 100n * 1_000_000n },
+            SharesYes: { brand: brands?.SharesYes, value: 100n * 1_000_000n }
+        };
 
         console.log('GIVE', give);
+        console.log('WANT', want);
+
+
         wallet?.makeOffer(
             contractSpec,
             { give, want },
