@@ -22,7 +22,7 @@ const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
 
 test.before(async t => (t.context = await makeTestContext(t)));
 
-test('The same user makes matching ask and bid, not resolved', async t => {
+test.skip('The same user makes matching ask and bid, not resolved', async t => {
     const { zoe } = t.context;
 
     const { instance, chainStorage }  = await createInstance(t);

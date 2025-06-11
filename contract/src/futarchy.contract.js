@@ -71,9 +71,6 @@ const CASH = 10_000n;
 */
 
 /**
- * In addition to the standard `issuers` and `brands` terms,
- * this contract is parameterized by terms for price and,
- * optionally, a maximum number of items sold for that price (default: 3).
  *
  * @typedef {{
  *   joinFutarchyFee: Amount;
@@ -93,10 +90,6 @@ export const customTermsShape = meta.customTermsShape;
 harden(customTermsShape);
 
 /**
- * Start a contract that
- *   - creates a new non-fungible asset type for Items, and
- *   - handles offers to buy up to `maxItems` items at a time.
- *
  * @param { ZCF<FutarchyTerms>} zcf
  */
 export const start = async (zcf, privateArgs) => {
@@ -523,7 +516,7 @@ export const start = async (zcf, privateArgs) => {
    * @returns {Offer | undefined}
    */
   const getBestAsk = (secret, condition) => {
-    const asks = offers.filter(o => o.type === 'ask' && o.condition === condition && o.secret != secret);
+    const asks = offers.filter(o => o.type === 'ask' && o.condition === condition /*&& o.secret != secret*/); //Use continuing invitation pattern instead
 
     asks.sort((b1, b2) => {
       if (b1 > b2) {
@@ -544,7 +537,7 @@ export const start = async (zcf, privateArgs) => {
    * @returns {Offer | undefined}
    */
   const getBestBid = (secret, condition) => {
-    const bids = offers.filter(o => o.type === 'bid' && o.condition === condition && o.secret != secret);
+    const bids = offers.filter(o => o.type === 'bid' && o.condition === condition /*&& o.secret != secret*/); //TODO: use continuing invitation pattern instead
 
     bids.sort((b1, b2) => {
       if (b2 > b1) {
@@ -725,7 +718,12 @@ export const start = async (zcf, privateArgs) => {
   const cancelOfferHandler = async (seat, offerArgs) => {
     assert(!over, 'The game is over');
 
-    console.log('CANCEL ARGS', offerArgs);
+    //TODO: use continuing invitation pattern
+
+    seat.exit();
+
+    return "TODO";
+    /*console.log('CANCEL ARGS', offerArgs);
 
     const offer = offers.find(offer => offer.id === offerArgs.id);
 
@@ -747,7 +745,7 @@ export const start = async (zcf, privateArgs) => {
 
     await publishAll([recordInPublishedOffer(offer)]);
 
-    seat.exit();
+    seat.exit();*/
   }
 
   /**

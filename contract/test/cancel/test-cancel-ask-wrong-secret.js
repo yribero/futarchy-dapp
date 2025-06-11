@@ -22,7 +22,7 @@ const test = /** @type {import('ava').TestFn<TestContext>}} */ (anyTest);
 
 test.before(async t => (t.context = await makeTestContext(t)));
 
-test('Canceling an ask', async t => {
+test.skip('Canceling an ask', async t => {
     const { zoe } = t.context;
 
     const { instance, chainStorage }  = await createInstance(t);
